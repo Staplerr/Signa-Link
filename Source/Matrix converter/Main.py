@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 import os
 
-parentPath = Path(os.getcwd())
+parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
 inputDirectory = parentPath.joinpath("Input")
 outputFile = parentPath.joinpath("output" + ".csv")
