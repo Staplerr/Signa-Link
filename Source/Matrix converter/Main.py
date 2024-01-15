@@ -69,10 +69,13 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
 
-df = pd.DataFrame(xyz_list)
-df.index = handColumnNameList
-df.columns = ["X", "Y", "Z"]
+Moo = []
+Moo.append(xyz_list)
+df = pd.DataFrame(Moo)
+df.columns = handColumnNameList
+df.index = ["หมู"]
 print(df)
+print(df.index)
 
 '''if len(handResult.handedness) > 1:
     print(handCoordinates[0])
