@@ -51,7 +51,6 @@ landmarks = handCoordinates[0]
 for landmark in landmarks:
     xyz_list.append([landmark.x, landmark.y, landmark.z])
     
-
 print(xyz_list)
 
 handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
@@ -60,16 +59,15 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
 
-
-df = pd.DataFrame(np.array(xyz_list))
+df = pd.DataFrame(xyz_list)
 df.index = handColumnNameList
 df.columns = ["X", "Y", "Z"]
 print(df)
 
-if len(handResult.handedness) > 1:
+'''if len(handResult.handedness) > 1:
     print(handCoordinates[0])
     print(handCoordinates[1])
-
+'''
 
 #displaying mask
 #from mediapipe.framework.formats import landmark_pb2
