@@ -1,6 +1,6 @@
 import pandas as pd
 import Easy_Signa_Links as sl
-
+import matplotlib.pyplot as plt
 
 handCoordinates = sl.get_HandCoordinates("Moo/Hand.jpg")
 
@@ -13,5 +13,8 @@ df.columns = sl.hand
 df.index = ["หมู"]
 
 Signa_Links = sl.PoomjaiIsNoob(df)
-Signa_Links.add(sl.get_HandCoordinates("Moo/Both.jpg"), index_name = ["หมู2"])
+Signa_Links.add(sl.get_HandCoordinates("Moo/Pose.jpg"), index_name = ["หมู2"])
+print(Signa_Links.df)
+
+Signa_Links.add(sl.get_HandCoordinates("Moo/Hand.jpg"), index_name = ["หมู3"])
 print(Signa_Links.df)

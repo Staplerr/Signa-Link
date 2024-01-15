@@ -113,6 +113,7 @@ class PoomjaiIsNoob:
             quit()
             
         self.df = pd.concat([self.df, df_to_add], ignore_index = False)
+        self.df = self.df.fillna(0)
         
         return self.df
     
@@ -136,5 +137,6 @@ class PoomjaiIsNoob:
             quit()
             
         self.df = pd.concat([self.df, df_to_add], ignore_index = False)
+        self.df = self.df.fillna(0)
         
         return self.df
