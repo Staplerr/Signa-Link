@@ -25,6 +25,16 @@ PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 HandLandmarker = mp.tasks.vision.HandLandmarker
 HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
+poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
+                      "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
+                      "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
+                      "left wrist", "right wrist", "left pinky", "right pinky", "left index",
+                      "right index","left thumb","right thumb","left hip","right hip"]
+handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
+                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
+                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
+                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
+                      "pinky tip"]
 
 #create the landmarker object
 poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=poseModel),
