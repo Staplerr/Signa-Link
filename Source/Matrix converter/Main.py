@@ -51,15 +51,29 @@ HandLandmarker = HandLandmarker.create_from_options(handOption)
 imagePATH = inputDirectory.joinpath("Moo/Hand.jpg").resolve()
 image = mp.Image.create_from_file(str(imagePATH))
 poseResult = poseLandmarker.detect(image)
-poseCoordinates = poseResult.pose_world_landmarks[0][:25]
+poseCoordinates = poseResult.pose_landmarks[0][:25]
 handResult = HandLandmarker.detect(image)
-handCoordinates = handResult.hand_world_landmarks
+handCoordinates = handResult.hand_landmarks
 
 xyz_both_list = []
 
+#Convert to csv
+Moo = []
+column = []
+columnHolder = []
+rowHolder = []
+#Pose dframe
+i = 0
+for landmark in poseCoordinates:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+    columnHolder.append(poseColumnNameList[i])
+    i += 1
+
+#Hand dframe
 for landmark in handCoordinates[0]:
     xyz_both_list.append([landmark.x, landmark.y, landmark.z])
     
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
 for landmark in handCoordinates[1]:
     xyz_both_list.append([landmark.x, landmark.y, landmark.z])
     
@@ -71,16 +85,42 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "pinky tip"]
 
 hand= []
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
 for word in handColumnNameList:
-    hand.append(word + " Right Hand")
+    columnHolder.append(word + " Right Hand")
 for word in handColumnNameList:
     hand.append(word + " Left Hand")
+handCoordinates = handResult.hand_landmarks
 
+#Convert to csv
 Moo = []
-Moo.append(xyz_both_list)
+column = []
+columnHolder = []
+rowHolder = []
+#Pose dframe
+i = 0
+for landmark in poseCoordinates:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+    columnHolder.append(poseColumnNameList[i])
+    i += 1
+
+#Hand dframe
+for landmark in handCoordinates[0]:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+for landmark in handCoordinates[1]:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+for word in handColumnNameList:
+    columnHolder.append(word + " Right Hand")
+for word in handColumnNameList:
+    columnHolder.append(word + " Left Hand")
+
+#Setting up dframe
+Moo.append(rowHolder)
+column.append(columnHolder)
 df = pd.DataFrame(Moo)
-df.columns = hand
+df.columns = column
 df.index = ["หมู"]
+df.to_csv(outputFile)
 print(df)
 print(df.describe)
 
@@ -114,3 +154,4 @@ print(df.describe)
 #annotated_image = draw_landmarks_on_image(image.numpy_view(), result)
 #cv2.imshow("window", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
 #cv2.waitKey()
+print(df.index)
