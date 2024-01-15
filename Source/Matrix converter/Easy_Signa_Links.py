@@ -47,23 +47,6 @@ handOption = HandLandmarkerOptions(base_options=BaseOptions(model_asset_path=han
 poseLandmarker = PoseLandmarker.create_from_options(poseOption)
 HandLandmarker = HandLandmarker.create_from_options(handOption)
 
-#detecting landmarks
-imagePATH = inputDirectory.joinpath("Moo/Hand.jpg").resolve()
-image = mp.Image.create_from_file(str(imagePATH))
-poseResult = poseLandmarker.detect(image)
-poseCoordinates = poseResult.pose_world_landmarks[0][:25]
-handResult = HandLandmarker.detect(image)
-handCoordinates = handResult.hand_world_landmarks
-
-xyz_both_list = []
-
-for landmark in handCoordinates[0]:
-    xyz_both_list.append([landmark.x, landmark.y, landmark.z])
-    
-for landmark in handCoordinates[1]:
-    xyz_both_list.append([landmark.x, landmark.y, landmark.z])
-    
-
 handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
                       "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
                       "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
@@ -71,46 +54,76 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "pinky tip"]
 
 hand= []
+right_hand = []
 for word in handColumnNameList:
     hand.append(word + " Right Hand")
+    right_hand.append(word + " Right Hand")
 for word in handColumnNameList:
     hand.append(word + " Left Hand")
 
-Moo = []
-Moo.append(xyz_both_list)
-df = pd.DataFrame(Moo)
-df.columns = hand
-df.index = ["หมู"]
-print(df)
-print(df.describe)
 
-'''if len(handResult.handedness) > 1:
-    print(handCoordinates[0])
-    print(handCoordinates[1])
-'''
+def get_Coordinates(Coordinates):
+    xyz_list = []
+        
+    for landmark in Coordinates[0]:
+        xyz_list.append([landmark.x, landmark.y, landmark.z])
+    
+    try:
+        for landmark in Coordinates[1]:
+            xyz_list.append([landmark.x, landmark.y, landmark.z])
+    except IndexError:
+        pass
+    
+    return xyz_list
 
-#displaying mask
-#from mediapipe.framework.formats import landmark_pb2
-#from mediapipe import solutions
-#def draw_landmarks_on_image(rgb_image, detection_result):
-#  pose_landmarks_list = detection_result.pose_landmarks
-#  annotated_image = np.copy(rgb_image)
-#
-#  # Loop through the detected poses to visualize.
-#  for idx in range(len(pose_landmarks_list)):
-#    pose_landmarks = pose_landmarks_list[idx]
-#
-#    # Draw the pose landmarks.
-#    pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-#    pose_landmarks_proto.landmark.extend([
-#      landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
-#    ])
-#    solutions.drawing_utils.draw_landmarks(
-#      annotated_image,
-#      pose_landmarks_proto,
-#      solutions.pose.POSE_CONNECTIONS,
-#      solutions.drawing_styles.get_default_pose_landmarks_style())
-#  return annotated_image
-#annotated_image = draw_landmarks_on_image(image.numpy_view(), result)
-#cv2.imshow("window", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-#cv2.waitKey()
+def get_HandCoordinates(path):
+    parentPath = Path(__file__).parent
+    inputDirectory = parentPath.joinpath("Input")
+    imagePATH = inputDirectory.joinpath(path)
+    image = mp.Image.create_from_file(str(imagePATH))
+    poseResult = poseLandmarker.detect(image)
+    poseCoordinates = poseResult.pose_world_landmarks[0][:25]
+    handResult = HandLandmarker.detect(image)
+    handCoordinates = handResult.hand_world_landmarks
+    
+    return handCoordinates
+
+class PoomjaiIsNoob:
+    def __init__(self, df):
+        self.df = df
+        
+    def __repr__(self):
+        return self.df
+    
+    def add_to_df(self, data, index_name = None, index_to_add_name = None):
+        list = []
+        list.append(data)
+        df_to_add = pd.DataFrame(list)
+        try:
+            df_to_add.columns = hand
+        except IndexError:
+            df_to_add.columns = right_hand
+        self.df = pd.concat([self.df, df_to_add], ignore_index = True)
+        if index_name is not None and index_to_add_name is not None:
+            self.df.index[index_to_add_name] = index_name
+        else:
+            pass
+        
+        return self.df
+    
+    def add(self, Coordinates, index_name = None, index_to_add_name = None):
+        xyz_list = get_Coordinates(Coordinates)
+        list = []
+        list.append(xyz_list)
+        df_to_add = pd.DataFrame(list)
+        try:
+            df_to_add.columns = hand
+        except IndexError:
+            df_to_add.columns = right_hand
+        self.df = pd.concat([self.df, df_to_add], ignore_index=True)
+        if index_name is not None and index_to_add_name is not None:
+            self.df.index[index_to_add_name] = index_name
+        else:
+            pass
+        
+        return self.df
