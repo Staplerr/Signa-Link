@@ -85,7 +85,7 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "pinky tip"]
 
 hand= []
-    rowHolder.append([landmark.x, landmark.y, landmark.z])
+rowHolder.append([landmark.x, landmark.y, landmark.z])
 for word in handColumnNameList:
     columnHolder.append(word + " Right Hand")
 for word in handColumnNameList:

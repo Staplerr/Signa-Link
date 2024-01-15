@@ -95,35 +95,46 @@ class PoomjaiIsNoob:
     def __repr__(self):
         return self.df
     
-    def add_to_df(self, data, index_name = None, index_to_add_name = None):
+    def add_to_df(self, data, index_name = None):
         list = []
         list.append(data)
         df_to_add = pd.DataFrame(list)
         try:
-            df_to_add.columns = hand
-        except IndexError:
-            df_to_add.columns = right_hand
-        self.df = pd.concat([self.df, df_to_add], ignore_index = True)
-        if index_name is not None and index_to_add_name is not None:
-            self.df.index[index_to_add_name] = index_name
-        else:
-            pass
+            if index_name is not None:
+                df_to_add.index = index_name
+            else:
+                pass
+            try:
+                df_to_add.columns = hand
+            except ValueError:
+                df_to_add.columns = right_hand
+        except TypeError:
+            print("\n\ntype Error!\nTry to add Square Bracket\n\n")
+            quit()
+            
+        self.df = pd.concat([self.df, df_to_add], ignore_index = False)
         
         return self.df
     
-    def add(self, Coordinates, index_name = None, index_to_add_name = None):
+    def add(self, Coordinates, index_name = None):
         xyz_list = get_Coordinates(Coordinates)
         list = []
         list.append(xyz_list)
         df_to_add = pd.DataFrame(list)
         try:
-            df_to_add.columns = hand
-        except IndexError:
-            df_to_add.columns = right_hand
-        self.df = pd.concat([self.df, df_to_add], ignore_index=True)
-        if index_name is not None and index_to_add_name is not None:
-            self.df.index[index_to_add_name] = index_name
-        else:
-            pass
+            if index_name is not None:
+                df_to_add.index = index_name
+            else:
+                pass
+            try:
+                df_to_add.columns = hand
+            except ValueError:
+                df_to_add.columns = right_hand
+                print("\n\n   No Left Hand.\n\n")
+        except TypeError:
+            print("\n\ntype Error!\nTry to add Square Bracket\n\n")
+            quit()
+            
+        self.df = pd.concat([self.df, df_to_add], ignore_index = False)
         
         return self.df
