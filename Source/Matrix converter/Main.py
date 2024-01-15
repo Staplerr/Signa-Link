@@ -38,16 +38,38 @@ poseLandmarker = PoseLandmarker.create_from_options(poseOption)
 HandLandmarker = HandLandmarker.create_from_options(handOption)
 
 #detecting landmarks
-imagePATH = inputDirectory.joinpath("หมู/Hand.jpg")
+imagePATH = inputDirectory.joinpath("Moo/Hand.jpg").resolve()
 image = mp.Image.create_from_file(str(imagePATH))
 poseResult = poseLandmarker.detect(image)
 poseCoordinates = poseResult.pose_world_landmarks[0][:25]
 handResult = HandLandmarker.detect(image)
 handCoordinates = handResult.hand_world_landmarks
-print(handResult.handedness)
+
+xyz_list = []
+
+landmarks = handCoordinates[0]
+for landmark in landmarks:
+    xyz_list.append([landmark.x, landmark.y, landmark.z])
+    
+
+print(xyz_list)
+
+handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
+                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
+                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
+                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
+                      "pinky tip"]
+
+
+df = pd.DataFrame(np.array(xyz_list))
+df.index = handColumnNameList
+df.columns = ["X", "Y", "Z"]
+print(df)
+
 if len(handResult.handedness) > 1:
     print(handCoordinates[0])
     print(handCoordinates[1])
+
 
 #displaying mask
 #from mediapipe.framework.formats import landmark_pb2
