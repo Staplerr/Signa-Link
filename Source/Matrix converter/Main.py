@@ -51,66 +51,38 @@ HandLandmarker = HandLandmarker.create_from_options(handOption)
 imagePATH = inputDirectory.joinpath("Moo/Hand.jpg").resolve()
 image = mp.Image.create_from_file(str(imagePATH))
 poseResult = poseLandmarker.detect(image)
-poseCoordinates = poseResult.pose_world_landmarks[0][:25]
+poseCoordinates = poseResult.pose_landmarks[0][:25]
 handResult = HandLandmarker.detect(image)
-handCoordinates = handResult.hand_world_landmarks
+handCoordinates = handResult.hand_landmarks
 
-xyz_right_list = []
-xyz_both_list = []
-
-for landmark in handCoordinates[0]:
-    xyz_right_list.append([landmark.x, landmark.y, landmark.z])
-    xyz_both_list.append([landmark.x, landmark.y, landmark.z])
-for landmark in handCoordinates[1]:
-    xyz_both_list.append([landmark.x, landmark.y, landmark.z])
-    
-
-handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
-                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
-                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
-                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
-                      "pinky tip"]
-hand= []
-for word in handColumnNameList:
-    hand.append(word + " Right Hand")
-for word in handColumnNameList:
-    hand.append(word + " Left Hand")
-
+#Convert to csv
 Moo = []
-Moo.append(xyz_both_list)
+column = []
+columnHolder = []
+rowHolder = []
+#Pose dframe
+i = 0
+for landmark in poseCoordinates:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+    columnHolder.append(poseColumnNameList[i])
+    i += 1
+
+#Hand dframe
+for landmark in handCoordinates[0]:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+for landmark in handCoordinates[1]:
+    rowHolder.append([landmark.x, landmark.y, landmark.z])
+for word in handColumnNameList:
+    columnHolder.append(word + " Right Hand")
+for word in handColumnNameList:
+    columnHolder.append(word + " Left Hand")
+
+#Setting up dframe
+Moo.append(rowHolder)
+column.append(columnHolder)
 df = pd.DataFrame(Moo)
-df.columns = hand
+df.columns = column
 df.index = ["หมู"]
+df.to_csv(outputFile)
 print(df)
 print(df.index)
-
-'''if len(handResult.handedness) > 1:
-    print(handCoordinates[0])
-    print(handCoordinates[1])
-'''
-
-#displaying mask
-#from mediapipe.framework.formats import landmark_pb2
-#from mediapipe import solutions
-#def draw_landmarks_on_image(rgb_image, detection_result):
-#  pose_landmarks_list = detection_result.pose_landmarks
-#  annotated_image = np.copy(rgb_image)
-#
-#  # Loop through the detected poses to visualize.
-#  for idx in range(len(pose_landmarks_list)):
-#    pose_landmarks = pose_landmarks_list[idx]
-#
-#    # Draw the pose landmarks.
-#    pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-#    pose_landmarks_proto.landmark.extend([
-#      landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
-#    ])
-#    solutions.drawing_utils.draw_landmarks(
-#      annotated_image,
-#      pose_landmarks_proto,
-#      solutions.pose.POSE_CONNECTIONS,
-#      solutions.drawing_styles.get_default_pose_landmarks_style())
-#  return annotated_image
-#annotated_image = draw_landmarks_on_image(image.numpy_view(), result)
-#cv2.imshow("window", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-#cv2.waitKey()
