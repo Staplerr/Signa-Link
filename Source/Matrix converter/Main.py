@@ -55,24 +55,31 @@ poseCoordinates = poseResult.pose_world_landmarks[0][:25]
 handResult = HandLandmarker.detect(image)
 handCoordinates = handResult.hand_world_landmarks
 
-xyz_list = []
+xyz_right_list = []
+xyz_both_list = []
 
-landmarks = handCoordinates[0]
-for landmark in landmarks:
-    xyz_list.append([landmark.x, landmark.y, landmark.z])
+for landmark in handCoordinates[0]:
+    xyz_right_list.append([landmark.x, landmark.y, landmark.z])
+    xyz_both_list.append([landmark.x, landmark.y, landmark.z])
+for landmark in handCoordinates[1]:
+    xyz_both_list.append([landmark.x, landmark.y, landmark.z])
     
-print(xyz_list)
 
 handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
                       "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
                       "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
+hand= []
+for word in handColumnNameList:
+    hand.append(word + " Right Hand")
+for word in handColumnNameList:
+    hand.append(word + " Left Hand")
 
 Moo = []
-Moo.append(xyz_list)
+Moo.append(xyz_both_list)
 df = pd.DataFrame(Moo)
-df.columns = handColumnNameList
+df.columns = hand
 df.index = ["หมู"]
 print(df)
 print(df.index)
