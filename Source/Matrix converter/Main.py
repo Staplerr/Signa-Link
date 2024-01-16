@@ -47,7 +47,7 @@ poseLandmarker = PoseLandmarker.create_from_options(poseOption)
 HandLandmarker = HandLandmarker.create_from_options(handOption)
 
 #initiate dataframe
-columnHolder = []
+columnHolder = ["Label"]
 for columnName in poseColumnNameList:
     columnHolder.append(columnName)
 for columnName in handColumnNameList:
@@ -63,14 +63,15 @@ def addLandMark(coordinates, index, value, i): #add landmark to list
         i += 1
     return value, i
 def toDataFrame(imagePATH, index): #convert image path to be added to dataframe
-    print("Adding " + imagePATH.name + " to dataframe as " + index + str(len(df)))
+    print("Adding " + imagePATH.name + " to dataframe as " + index + " to index " + str(len(df)))
     image = mp.Image.create_from_file(str(imagePATH))
     poseResult = poseLandmarker.detect(image)
     handResult = HandLandmarker.detect(image)
     poseCoordinates = poseResult.pose_landmarks[0][:25]
     handCoordinates = handResult.hand_landmarks
-    value = [0] * 67
-    i = 0
+    value = [0] * 68 #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
+    value[0] = index
+    i = 1
     #add landmarks to list
     for landmark in poseCoordinates:
         value[i] = [landmark.x, landmark.y, landmark.z]
@@ -78,14 +79,14 @@ def toDataFrame(imagePATH, index): #convert image path to be added to dataframe
     if len(handCoordinates) > 1:
         value, i = addLandMark(handCoordinates, 0, value, i)
         value, i = addLandMark(handCoordinates, 1, value, i)
-    else:
+    elif len(handCoordinates) > 0: #detect if the image does have a hand in the first place
         if handResult.handedness[0][0].category_name == "Left":
             i += 21
             value, i = addLandMark(handCoordinates, 0, value, i)
         else:
             value, i = addLandMark(handCoordinates, 0, value, i)
     #add landmarks to dataframe
-    df.loc[index + str(len(df))] = value
+    df.loc[len(df)] = value
 
 #"g o o d s t u f f"
 imageSubdirectory = inputDirectory.iterdir()
