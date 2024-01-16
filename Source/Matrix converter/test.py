@@ -1,6 +1,5 @@
 import pandas as pd
 import Easy_Signa_Links as sl
-import matplotlib.pyplot as plt
 
 handCoordinates = sl.get_HandCoordinates("Moo/Hand.jpg")
 
