@@ -11,19 +11,9 @@ parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
 inputDirectory = parentPath.joinpath("Input/")
 outputFile = parentPath.joinpath("output" + ".csv")
-
 modelDirectory = parentPath.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
 poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
-#Config
-minPoseConfidence = 0.5
-minHandConfidence = 0.5
-BaseOptions = mp.tasks.BaseOptions
-PoseLandmarker = mp.tasks.vision.PoseLandmarker
-PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
-HandLandmarker = mp.tasks.vision.HandLandmarker
-HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
-VisionRunningMode = mp.tasks.vision.RunningMode
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
                       "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
                       "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
@@ -34,6 +24,45 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
+#list for converting label into a number
+labelList = {"กรอบ": 0,
+             "กระเพรา": 1,
+             "ขา": 2,
+             "ข้าว": 3,
+             "ไข่": 4,
+             "คะน้า": 5,
+             "เค็ม": 6,
+             "โจ๊ก": 7,
+             "แดง": 8,
+             "ต้ม": 9,
+             "แตงโม": 10,
+             "น้ำพริกเผา": 11,
+             "บะหมี่": 12,
+             "เปรี้ยว": 13,
+             "ผัด": 14,
+             "ฝรั่ง": 15,
+             "พริกแกง": 16,
+             "มะม่วง": 17,
+             "ม้า": 18,
+             "มาม่า": 19,
+             "ลูกชิ้นปลา": 20,
+             "เลือด": 21,
+             "สับ": 22,
+             "เส้นเล็ก": 23,
+             "เส้นใหญ่": 24,
+             "หมู": 25,
+             "หวาน": 26,
+             "องุ่น": 27,
+             "แอปเปิ้ล": 28}
+#Config
+minPoseConfidence = 0.5
+minHandConfidence = 0.5
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = vision.PoseLandmarker
+PoseLandmarkerOptions = vision.PoseLandmarkerOptions
+HandLandmarker = vision.HandLandmarker
+HandLandmarkerOptions = vision.HandLandmarkerOptions
+VisionRunningMode = vision.RunningMode
 
 #create the landmarker object
 poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=poseModel),
@@ -51,9 +80,9 @@ columnHolder = ["Label"]
 for columnName in poseColumnNameList:
     columnHolder.append(columnName)
 for columnName in handColumnNameList:
-    columnHolder.append(columnName + " Right")
+    columnHolder.append("right " + columnName)
 for columnName in handColumnNameList:
-    columnHolder.append(columnName + " Left")
+    columnHolder.append("left " + columnName)
 df = pd.DataFrame(columns=columnHolder)
 
 #function for adding landmarks on 
@@ -71,7 +100,7 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
     if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
         print("Adding " + imagePATH.name + " to dataframe as " + label + " to index " + str(len(df)))
         value = [0] * 68 #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
-        value[0] = label
+        value[0] = labelList[label] #convert label to number to make it easier to use with neural network
         i = 1
         #add landmarks to list
         for landmark in poseCoordinates[0][:25]:
@@ -89,7 +118,7 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
         #add landmarks to dataframe
         df.loc[len(df)] = value
     else:
-        print("Fail to detect " + str(imagePATH) + "'s pose or hand")
+        print("Fail to add " + imagePATH.name + " to " + label) #unable to detect either pose or hand coordinates
 
 #"g o o d s t u f f"
 imageSubdirectory = inputDirectory.iterdir()
