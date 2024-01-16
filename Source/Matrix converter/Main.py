@@ -62,39 +62,42 @@ def addLandMark(coordinates, index, value, i): #add landmark to list
         value[i] = [landmark.x, landmark.y, landmark.z]
         i += 1
     return value, i
-def toDataFrame(imagePATH, index): #convert image path to be added to dataframe
-    print("Adding " + imagePATH.name + " to dataframe as " + index + " to index " + str(len(df)))
+def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
     image = mp.Image.create_from_file(str(imagePATH))
     poseResult = poseLandmarker.detect(image)
     handResult = HandLandmarker.detect(image)
-    poseCoordinates = poseResult.pose_landmarks[0][:25]
+    poseCoordinates = poseResult.pose_landmarks
     handCoordinates = handResult.hand_landmarks
-    value = [0] * 68 #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
-    value[0] = index
-    i = 1
-    #add landmarks to list
-    for landmark in poseCoordinates:
-        value[i] = [landmark.x, landmark.y, landmark.z]
-        i += 1
-    if len(handCoordinates) > 1:
-        value, i = addLandMark(handCoordinates, 0, value, i)
-        value, i = addLandMark(handCoordinates, 1, value, i)
-    elif len(handCoordinates) > 0: #detect if the image does have a hand in the first place
-        if handResult.handedness[0][0].category_name == "Left":
-            i += 21
+    if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
+        print("Adding " + imagePATH.name + " to dataframe as " + label + " to index " + str(len(df)))
+        value = [0] * 68 #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
+        value[0] = label
+        i = 1
+        #add landmarks to list
+        for landmark in poseCoordinates[0][:25]:
+            value[i] = [landmark.x, landmark.y, landmark.z]
+            i += 1
+        if len(handCoordinates) > 1:
             value, i = addLandMark(handCoordinates, 0, value, i)
+            value, i = addLandMark(handCoordinates, 1, value, i)
         else:
-            value, i = addLandMark(handCoordinates, 0, value, i)
-    #add landmarks to dataframe
-    df.loc[len(df)] = value
+            if handResult.handedness[0][0].category_name == "Left":
+                i += 21
+                value, i = addLandMark(handCoordinates, 0, value, i)
+            else:
+                value, i = addLandMark(handCoordinates, 0, value, i)
+        #add landmarks to dataframe
+        df.loc[len(df)] = value
+    else:
+        print("Fail to detect " + str(imagePATH) + "'s pose or hand")
 
 #"g o o d s t u f f"
 imageSubdirectory = inputDirectory.iterdir()
 for childDirectory in imageSubdirectory:
     if childDirectory.is_dir():
         for image in childDirectory.glob("**/*.jpg"):   #reading all image in input directory
-            index = childDirectory.name                 #saving directory name to use as index name
-            toDataFrame(image, index)
+            label = childDirectory.name                 #saving directory name to use as index name
+            toDataFrame(image, label)
 print("Output dataframe:")
 print(df)
 df.to_csv(outputFile)
