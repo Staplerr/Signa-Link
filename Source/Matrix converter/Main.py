@@ -129,4 +129,4 @@ for childDirectory in imageSubdirectory:
             toDataFrame(image, label)
 print("Output dataframe:")
 print(df)
-df.to_csv(outputFile)
+df.to_csv(outputFile, index=False)
