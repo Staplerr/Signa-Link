@@ -10,7 +10,7 @@ from pathlib import Path
 parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
 inputDirectory = parentPath.joinpath("Input/")
-outputFile = parentPath.joinpath("output" + ".csv")
+outputFile = parentPath.joinpath("output" + ".xlsx")
 modelDirectory = parentPath.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
 poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
@@ -76,14 +76,14 @@ poseLandmarker = PoseLandmarker.create_from_options(poseOption)
 HandLandmarker = HandLandmarker.create_from_options(handOption)
 
 #initiate dataframe
-columnHolder = ["Label"]
+columnNames = ["Label"]
 for columnName in poseColumnNameList:
-    columnHolder.append(columnName)
+    columnNames.append(columnName)
 for columnName in handColumnNameList:
-    columnHolder.append("right " + columnName)
+    columnNames.append("right " + columnName)
 for columnName in handColumnNameList:
-    columnHolder.append("left " + columnName)
-df = pd.DataFrame(columns=columnHolder)
+    columnNames.append("left " + columnName)
+df = pd.DataFrame(columns=columnNames)
 
 #function for adding landmarks on 
 def addLandMark(coordinates, index, value, i): #add landmark to list
@@ -99,7 +99,7 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
     handCoordinates = handResult.hand_landmarks
     if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
         print("Adding " + imagePATH.name + " to dataframe as " + label + " to index " + str(len(df)))
-        value = [0] * 68 #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
+        value = [0] * (1 + len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
         value[0] = labelList[label] #convert label to number to make it easier to use with neural network
         i = 1
         #add landmarks to list
@@ -129,4 +129,4 @@ for childDirectory in imageSubdirectory:
             toDataFrame(image, label)
 print("Output dataframe:")
 print(df)
-df.to_csv(outputFile, index=False)
+df.to_excel(outputFile, index=False)

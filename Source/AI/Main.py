@@ -1,8 +1,10 @@
-import tensorflow as tf
-import keras
-from keras import layers
+#import tensorflow as tf
+#import keras
+#from keras import layers
 import pandas as pd
 from pathlib import Path
+import numpy as np
+import ast
 
 labelList = {"กรอบ": 0,
              "กระเพรา": 1,
@@ -33,19 +35,33 @@ labelList = {"กรอบ": 0,
              "หวาน": 26,
              "องุ่น": 27,
              "แอปเปิ้ล": 28}
-dataset = pd.read_csv(Path(__file__).parent.joinpath("dataset.csv"))
-print(dataset["Label"].convert_dtypes(convert_string=False).values)
-print(dataset.drop(["Label"], axis=1).convert_dtypes(convert_string=False).values)
-label = tf.convert_to_tensor(dataset["Label"].convert_dtypes().values)
-data = tf.convert_to_tensor(dataset.drop(["Label"], axis=1).convert_dtypes().values, dtype=tf.float16)
-print(data)
+dataset = pd.read_excel(Path(__file__).parent.joinpath("dataset.xlsx"))
+#label = tf.convert_to_tensor(dataset["Label"].values, dtype=tf.int8)
+stringData = dataset.drop(["Label"], axis=1)
+columnNames = [f'{i}' for i in range(len(stringData.columns))]
+data = pd.DataFrame(columns=columnNames)
+for row in stringData.values: #pandas decided to convert all matrix to string when save the dataset as xlsx
+    rowData = [0] * len(stringData.columns)
+    i = 0
+    for matrix in row:
+        if type(matrix) == str: #check for 0 which pandas doesn't turn into string
+            matrix = ast.literal_eval(matrix)
+        rowData[i] = matrix
+        i += 1
+    data.loc[len(data)] = rowData
 
-model = keras.models.Sequential([
+#print(data)
+print(data.values)
+#print(type(data.values[0][0][0]))
+
+#data = tf.convert_to_tensor(data.values, dtype=tf.float16)
+
+'''model = keras.models.Sequential([
     layers.Flatten(input_shape=(67, 3)),
     layers.Dense(len(labelList))
 ])
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
-#keras.utils.plot_model(model, to_file="model.png")
-model.fit(data, label, epochs=5)
+keras.utils.plot_model(model, to_file="model.png")
+model.fit(data, label, epochs=5)'''
