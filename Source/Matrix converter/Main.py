@@ -1,12 +1,11 @@
 import mediapipe as mp
 from mediapipe.tasks.python import vision
-import cv2
-import tensorflow as tf
-import keras
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import os
 
+#path variable
 parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
 inputDirectory = parentPath.joinpath("Input/")
@@ -55,6 +54,7 @@ labelList = {"กรอบ": 0,
              "องุ่น": 27,
              "แอปเปิ้ล": 28}
 #Config
+removeUnusableImage = True
 minPoseConfidence = 0.5
 minHandConfidence = 0.5
 BaseOptions = mp.tasks.BaseOptions
@@ -99,7 +99,7 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
     handCoordinates = handResult.hand_landmarks
     if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
         print("Adding " + imagePATH.name + " to dataframe as " + label + " to index " + str(len(df)))
-        value = [0] * (1 + len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
+        value = [[0, 0, 0]] * (1 + len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
         value[0] = labelList[label] #convert label to number to make it easier to use with neural network
         i = 1
         #add landmarks to list
@@ -119,6 +119,8 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
         df.loc[len(df)] = value
     else:
         print("Fail to add " + imagePATH.name + " to " + label) #unable to detect either pose or hand coordinates
+        if removeUnusableImage:
+            os.remove(imagePATH)
 
 #"g o o d s t u f f"
 imageSubdirectory = inputDirectory.iterdir()
