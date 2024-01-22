@@ -126,8 +126,8 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
 imageSubdirectory = inputDirectory.iterdir()
 for childDirectory in imageSubdirectory:
     if childDirectory.is_dir():
-        for image in childDirectory.glob("**/*.jpg"):   #reading all image in input directory
-            label = childDirectory.name                 #saving directory name to use as index name
+        for image in childDirectory.glob(["**/*.png", "**/*.jpg"]): #reading all image in input directory
+            label = childDirectory.name #saving directory name to use as index name
             toDataFrame(image, label)
 print("Output dataframe:")
 print(df)
