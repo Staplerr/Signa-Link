@@ -4,12 +4,13 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import os
+import cv2
 
 #path variable
 parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
 inputDirectory = parentPath.joinpath("Input/")
-outputFile = parentPath.joinpath("output" + ".xlsx")
+outputFile = parentPath.joinpath("video output" + ".xlsx")
 modelDirectory = parentPath.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
 poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
@@ -91,14 +92,14 @@ def addLandMark(coordinates, index, value, i): #add landmark to list
         value[i] = [landmark.x, landmark.y, landmark.z]
         i += 1
     return value, i
-def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
-    image = mp.Image.create_from_file(str(imagePATH))
+def toDataFrame(frame, label, videoPATH): #convert image path to be added to dataframe
+    image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame) #convert ndarray to mp image class
     poseResult = poseLandmarker.detect(image)
     handResult = HandLandmarker.detect(image)
     poseCoordinates = poseResult.pose_landmarks
     handCoordinates = handResult.hand_landmarks
     if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
-        print("Adding " + imagePATH.name + " to dataframe as " + label + " to index " + str(len(df)))
+        print("Adding " + videoPATH.name + " to dataframe as " + label + " to index " + str(len(df)))
         value = [[0, 0, 0]] * (1 + len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
         value[0] = labelList[label] #convert label to number to make it easier to use with neural network
         i = 1
@@ -117,18 +118,28 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
                 value, i = addLandMark(handCoordinates, 0, value, i)
         #add landmarks to dataframe
         df.loc[len(df)] = value
-    else:
-        print("Fail to add " + imagePATH.name + " to " + label) #unable to detect either pose or hand coordinates
-        if removeUnusableImage:
-            os.remove(imagePATH)
+    #else:
+    #    print("Fail to add " + videoPATH.name + " to " + label) #unable to detect either pose or hand coordinates
+    #    if removeUnusableImage:
+    #        os.remove(videoPATH)
+def process_image(videoPATH, label):
+    cap = cv2.VideoCapture(str(videoPATH))
+    while cap.isOpened():
+        success, frame = cap.read()
+        if success:
+            frameArray = np.asarray(frame[:,:]) #convert opencv mat to ndarray so it is readable by mp image class
+            toDataFrame(frameArray, label, videoPATH)
+        else:
+            break
+    cap.release()
 
 #"g o o d s t u f f"
 imageSubdirectory = inputDirectory.iterdir()
 for childDirectory in imageSubdirectory:
     if childDirectory.is_dir():
-        for image in childDirectory.glob("**/*.jpg"):   #reading all image in input directory
+        for video in childDirectory.glob("**/*.mp4"):   #reading all image in input directory
             label = childDirectory.name                 #saving directory name to use as index name
-            toDataFrame(image, label)
+            process_image(video, label)
 print("Output dataframe:")
 print(df)
 df.to_excel(outputFile, index=False)
