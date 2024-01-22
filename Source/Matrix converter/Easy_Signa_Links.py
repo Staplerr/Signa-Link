@@ -60,6 +60,7 @@ for word in handColumnNameList:
     right_hand.append(word + " Right Hand")
 for word in handColumnNameList:
     hand.append(word + " Left Hand")
+    
 
 
 def get_Coordinates(Coordinates):
