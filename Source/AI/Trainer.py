@@ -35,7 +35,7 @@ labelList = {"กรอบ": 0,
              "หวาน": 26,
              "องุ่น": 27,
              "แอปเปิ้ล": 28}
-dataset = pd.read_excel(Path(__file__).parent.joinpath("dataset.xlsx"))
+dataset = pd.read_excel(Path(__file__).parent.joinpath("dataset2.xlsx"))
 label = tf.convert_to_tensor(dataset["Label"].values, dtype=tf.int8)
 
 stringData = dataset.drop(["Label"], axis=1)
@@ -57,12 +57,14 @@ print(data.shape)
 
 model = keras.models.Sequential([
     layers.Flatten(input_shape=(201, 1)),
-    layers.Dense(256, "relu"),
-    layers.Dense(128, "relu"),
+    layers.Dense(256, activation="relu"),
+    layers.Dense(256, activation="relu"),
+    layers.Dense(128, activation="relu"),
+    layers.Dense(128, activation="relu"),
     layers.Dropout(0.3),
-    layers.Dense(len(labelList))
+    layers.Dense(len(labelList), activation="softmax")
 ])
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
-model.fit(data, label, epochs=5, batch_size=256)
+model.fit(data, label, epochs=50, batch_size=256)
