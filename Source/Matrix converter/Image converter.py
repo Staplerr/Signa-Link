@@ -9,7 +9,7 @@ import os
 parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
 inputDirectory = parentPath.joinpath("Input/")
-outputFile = parentPath.joinpath("output" + ".xlsx")
+outputFile = parentPath.joinpath("image output" + ".xlsx")
 modelDirectory = parentPath.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
 poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
@@ -126,8 +126,8 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
 imageSubdirectory = inputDirectory.iterdir()
 for childDirectory in imageSubdirectory:
     if childDirectory.is_dir():
-        for image in childDirectory.glob("**/*.*"):   #reading all image in input directory
-            label = childDirectory.name                 #saving directory name to use as index name
+        for image in childDirectory.glob("**/*.*"): #reading all image in input directory
+            label = childDirectory.name #saving directory name to use as index name
             toDataFrame(image, label)
 print("Output dataframe:")
 print(df)

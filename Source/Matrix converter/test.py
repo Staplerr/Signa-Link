@@ -1,5 +1,6 @@
 import pandas as pd
 import Easy_Signa_Links as sl
+import cv2
 
 handCoordinates = sl.get_HandCoordinates("Moo/Hand.jpg")
 
