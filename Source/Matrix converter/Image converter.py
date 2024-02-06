@@ -4,11 +4,12 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import os
+import time
 
 #path variable
 parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
-inputDirectory = parentPath.joinpath("Input/")
+inputDirectory = parentPath.joinpath("Output/")
 outputFile = parentPath.joinpath("image output" + ".xlsx")
 modelDirectory = parentPath.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
@@ -118,17 +119,23 @@ def toDataFrame(imagePATH, label): #convert image path to be added to dataframe
         #add landmarks to dataframe
         df.loc[len(df)] = value
     else:
-        print("Fail to add " + imagePATH.name + " to " + label) #unable to detect either pose or hand coordinates
+        #unable to detect either pose or hand coordinates
         if removeUnusableImage:
             os.remove(imagePATH)
 
 #"g o o d s t u f f"
+startTime = time.perf_counter()
 imageSubdirectory = inputDirectory.iterdir()
 for childDirectory in imageSubdirectory:
     if childDirectory.is_dir():
         for image in childDirectory.glob("**/*.*"): #reading all image in input directory
             label = childDirectory.name #saving directory name to use as index name
             toDataFrame(image, label)
+
+df = df.sample(frac=1) #Shuffle dataframe
 print("Output dataframe:")
 print(df)
 df.to_excel(outputFile, index=False)
+
+finishTime = time.perf_counter()
+print(f"total time: {finishTime - startTime}")

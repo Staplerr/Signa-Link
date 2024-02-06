@@ -6,9 +6,12 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 import ast
+import random
+import time
 
 keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
 batchSize = 256
+
 parentDirectory = Path(__file__).parent
 labelList = {"กรอบ": 0,
              "กระเพรา": 1,
@@ -39,6 +42,7 @@ labelList = {"กรอบ": 0,
              "หวาน": 26,
              "องุ่น": 27,
              "แอปเปิ้ล": 28}
+
 def preprocessData(dataset):
     label = tf.convert_to_tensor(dataset["Label"].values, dtype=tf.int8)
     stringData = dataset.drop(["Label"], axis=1)
@@ -59,8 +63,17 @@ def preprocessData(dataset):
     data = tf.convert_to_tensor(data, dtype=tf.float16)
     return data, label
 
-dataset = pd.read_excel(parentDirectory.joinpath("smol dataset.xlsx"))
+#Preparing dataset
+dataset = pd.read_excel(parentDirectory.joinpath("BIG dataset.xlsx"))
+loadStart = time.perf_counter()
 data, label = preprocessData(dataset)
+loadFinish = time.perf_counter()
+#seed = random.randint(0, 1000) #Set seed to make sure the data and label will be shuffle in the same order
+#data = tf.random.shuffle(data, seed=seed)
+#label = tf.random.shuffle(label, seed=seed)
+print(data)
+print(label)
+print(f"Dataset load time: {loadFinish - loadStart}")
 del dataset 
 
 model = keras.models.Sequential([
@@ -70,11 +83,11 @@ model = keras.models.Sequential([
     layers.Dense(256, activation=nn.relu),
     layers.Dense(128, activation=nn.leaky_relu),
     layers.Dropout(0.3),
-    layers.Dense(len(labelList), activation=nn.softmax)
+    layers.Dense(len(labelList), activation=nn.softmax) 
 ])
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 model.fit(data, label, epochs=50, batch_size=batchSize)
 model.evaluate(data, label, batch_size=batchSize)
-model.save(str(parentDirectory.joinpath("Matrix model smol")))
+model.save(str(parentDirectory.joinpath("Matrix model full")))

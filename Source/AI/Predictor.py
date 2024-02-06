@@ -7,39 +7,39 @@ import numpy as np
 import mediapipe as mp
 from mediapipe.tasks.python import vision
 
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
 parentDirectory = Path(__file__).parent
 testDirectory = parentDirectory.joinpath("Test image")
-model = keras.models.load_model(parentDirectory.joinpath("Matrix model smol"))
-labelList = {"กรอบ": 0,
-             "กระเพรา": 1,
-             "ขา": 2,
-             "ข้าว": 3,
-             "ไข่": 4,
-             "คะน้า": 5,
-             "เค็ม": 6,
-             "โจ๊ก": 7,
-             "แดง": 8,
-             "ต้ม": 9,
-             "แตงโม": 10,
-             "น้ำพริกเผา": 11,
-             "บะหมี่": 12,
-             "เปรี้ยว": 13,
-             "ผัด": 14,
-             "ฝรั่ง": 15,
-             "พริกแกง": 16,
-             "มะม่วง": 17,
-             "ม้า": 18,
-             "มาม่า": 19,
-             "ลูกชิ้นปลา": 20,
-             "เลือด": 21,
-             "สับ": 22,
-             "เส้นเล็ก": 23,
-             "เส้นใหญ่": 24,
-             "หมู": 25,
-             "หวาน": 26,
-             "องุ่น": 27,
-             "แอปเปิ้ล": 28}
+model = keras.models.load_model(parentDirectory.joinpath("Matrix model full"))
+labelList = {0: "กรอบ",
+             1: "กระเพรา",
+             2: "ขา",
+             3: "ข้าว",
+             4: "ไข่",
+             5: "คะน้า",
+             6: "เค็ม",
+             7: "โจ๊ก",
+             8: "แดง",
+             9: "ต้ม",
+             10: "แตงโม",
+             11: "น้ำพริกเผา",
+             12: "บะหมี่",
+             13: "เปรี้ยว",
+             14: "ผัด",
+             15: "ฝรั่ง",
+             16: "พริกแกง",
+             17: "มะม่วง",
+             18: "ม้า",
+             19: "มาม่า",
+             20: "ลูกชิ้นปลา",
+             21: "เลือด",
+             22: "สับ",
+             23: "เส้นเล็ก",
+             24: "เส้นใหญ่",
+             25: "หมู",
+             26: "หวาน",
+             27: "องุ่น",
+             28: "แอปเปิ้ล"}
 
 #Pose/Hand detection model config
 mediapipeModelDirectory = parentDirectory.joinpath("Mediapipe model")
@@ -86,7 +86,7 @@ def pictureToMatrix(imagePATH):
     handCoordinates = handResult.hand_landmarks
     if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
         matrix = [[0, 0, 0]] * (len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
-        i = 1
+        i = 0
         #add landmarks to list
         for landmark in poseCoordinates[0][:25]:
             matrix[i] = [landmark.x, landmark.y, landmark.z]
@@ -102,12 +102,24 @@ def pictureToMatrix(imagePATH):
                 matrix, i = addLandMark(handCoordinates, 0, matrix, i)
         return matrix
     else:
-        print("Fail to detect: " + str(imagePATH))
+        #print("Fail to detect: " + str(imagePATH))
+        return None
 
-for file in testDirectory.glob("*.*"):
+total = 0
+correct = 0
+unconfidence = 0
+for file in testDirectory.glob("*/*.*"):
     matrix = pictureToMatrix(file)
     if matrix != None:
         matrix = np.array(matrix).flatten()
         matrix = matrix.reshape((-1, 67*3, 1))
         matrix = tf.convert_to_tensor(matrix, dtype=tf.float16)
-        print(np.argmax(model.predict(matrix)))
+        prediction = model.predict(matrix, verbose=3)
+        
+        total += 1
+        if max(prediction[0]) > 0.5:
+            if labelList[np.argmax(prediction)] == file.parent.name:
+                correct += 1
+        else:
+            unconfidence += 1
+print(f"total: {total} corect: {correct} unconfidence: {unconfidence} wrong: {total-unconfidence-correct}")
