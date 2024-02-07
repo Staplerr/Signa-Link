@@ -1,16 +1,17 @@
 import tensorflow as tf
 import keras
-from keras import layers
-import pandas as pd
 from pathlib import Path
 import numpy as np
 import mediapipe as mp
 from mediapipe.tasks.python import vision
+import time
+from flask import Flask
 
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
 parentDirectory = Path(__file__).parent
 testDirectory = parentDirectory.joinpath("Test image")
 model = keras.models.load_model(parentDirectory.joinpath("Matrix model full"))
+app = Flask(__name__)
 labelList = {0: "กรอบ",
              1: "กระเพรา",
              2: "ขา",
@@ -40,18 +41,6 @@ labelList = {0: "กรอบ",
              26: "หวาน",
              27: "องุ่น",
              28: "แอปเปิ้ล"}
-
-#Pose/Hand detection model config
-mediapipeModelDirectory = parentDirectory.joinpath("Mediapipe model")
-removeUnusableImage = True
-minPoseConfidence = 0.5
-minHandConfidence = 0.5
-BaseOptions = mp.tasks.BaseOptions
-PoseLandmarker = vision.PoseLandmarker
-PoseLandmarkerOptions = vision.PoseLandmarkerOptions
-HandLandmarker = vision.HandLandmarker
-HandLandmarkerOptions = vision.HandLandmarkerOptions
-VisionRunningMode = vision.RunningMode
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
                       "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
                       "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
@@ -62,22 +51,36 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
-#create the landmarker object
-poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("pose_landmarker_full.task")),
-                                   running_mode=VisionRunningMode.IMAGE,
-                                   min_pose_detection_confidence=minPoseConfidence)
-handOption = HandLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("hand_landmarker.task")),
-                                   running_mode=VisionRunningMode.IMAGE,
-                                   min_hand_detection_confidence=minHandConfidence,
-                                   num_hands=2)
-poseLandmarker = PoseLandmarker.create_from_options(poseOption)
-HandLandmarker = HandLandmarker.create_from_options(handOption)
+
+def initiateMediapipeModel():
+    #Pose/Hand detection model config
+    mediapipeModelDirectory = parentDirectory.joinpath("Mediapipe model")
+    minPoseConfidence = 0.5
+    minHandConfidence = 0.5
+    BaseOptions = mp.tasks.BaseOptions
+    PoseLandmarker = vision.PoseLandmarker
+    PoseLandmarkerOptions = vision.PoseLandmarkerOptions
+    HandLandmarker = vision.HandLandmarker
+    HandLandmarkerOptions = vision.HandLandmarkerOptions
+    VisionRunningMode = vision.RunningMode
+    #create the landmarker object
+    poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("pose_landmarker_full.task")),
+                                       running_mode=VisionRunningMode.IMAGE,
+                                       min_pose_detection_confidence=minPoseConfidence)
+    handOption = HandLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("hand_landmarker.task")),
+                                       running_mode=VisionRunningMode.IMAGE,
+                                       min_hand_detection_confidence=minHandConfidence,
+                                       num_hands=2)
+    poseLandmarker = PoseLandmarker.create_from_options(poseOption)
+    HandLandmarker = HandLandmarker.create_from_options(handOption)
+    return poseLandmarker, HandLandmarker
 
 def addLandMark(coordinates, index, matrix, i): #add landmark to list
     for landmark in coordinates[index]:
         matrix[i] = [landmark.x, landmark.y, landmark.z]
         i += 1
     return matrix, i
+
 def pictureToMatrix(imagePATH):
     image = mp.Image.create_from_file(str(imagePATH))
     poseResult = poseLandmarker.detect(image)
@@ -105,21 +108,20 @@ def pictureToMatrix(imagePATH):
         #print("Fail to detect: " + str(imagePATH))
         return None
 
-total = 0
-correct = 0
-unconfidence = 0
-for file in testDirectory.glob("*/*.*"):
-    matrix = pictureToMatrix(file)
+poseLandmarker, HandLandmarker = initiateMediapipeModel()
+@app.post('/predict')
+def predictImage(image, minConfidence):
+    matrix = pictureToMatrix(image)
     if matrix != None:
         matrix = np.array(matrix).flatten()
         matrix = matrix.reshape((-1, 67*3, 1))
         matrix = tf.convert_to_tensor(matrix, dtype=tf.float16)
         prediction = model.predict(matrix, verbose=3)
-        
-        total += 1
-        if max(prediction[0]) > 0.5:
-            if labelList[np.argmax(prediction)] == file.parent.name:
-                correct += 1
-        else:
-            unconfidence += 1
-print(f"total: {total} corect: {correct} unconfidence: {unconfidence} wrong: {total-unconfidence-correct}")
+
+        if max(prediction[0]) * 100 > minConfidence:
+            return labelList[np.argmax(prediction)]
+
+for file in testDirectory.glob("*.*"):
+    startTime = time.perf_counter()
+    prediction = predictImage(file, 50)
+    print(f"inference time: {time.perf_counter() - startTime} seconds")
