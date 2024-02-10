@@ -9,7 +9,6 @@ const canvas = document.querySelector('canvas');
 const screenshotImage = document.querySelector('img');
 const buttons = [...controls.querySelectorAll('button')];
 let streamStarted = false;
-let imageCapture
 const [play, pause, screenshot] = buttons;
 
 const constraints = {
@@ -28,10 +27,12 @@ const constraints = {
 };
 
 async function captureImage(stream){
+  //Get track from stream then get frame from track
   const track = stream.getVideoTracks()[0];
   const image = new ImageCapture(track);
   const photoBlob = await image.grabFrame();
 
+  //Add frame to canvas so it could be convert to data URL later
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   canvas.width = photoBlob.width;
@@ -43,18 +44,13 @@ async function captureImage(stream){
 };
 
 //Function for calling python api
-async function predictImage(stream) {
-  let frameURL;
-  captureImage(stream).then((result) =>{
-    console.log(result);
-    frameURL = result;
-  });
-
+async function callPredictImage(stream) {
+  let frameURL = await captureImage(stream);
   const response = await fetch('http://127.0.0.1:5000/predictImage', {
       method: 'POST',
       body: frameURL
   });
-  return response;
+  return response.json();
 };
 
 async function APIgetTest() {
@@ -123,11 +119,15 @@ const handleStream = (stream) => {
   pause.classList.remove('d-none');
   screenshot.classList.remove('d-none');
 
-  predictImage(stream).then((result) => {
-    console.log(result);
-  });
-
   streamStarted = true;
+
+  //Set up function so it could be use with interval
+  function getPrediction(stream) {
+    callPredictImage(stream).then((result) => {
+      console.log(result);
+    });
+  };
+  setInterval(getPrediction, 1000, stream)//Interval that with predict label of current frame!
 };
 
 getCameraSelection();

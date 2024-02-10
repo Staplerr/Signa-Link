@@ -8,12 +8,14 @@ import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
+from binascii import a2b_base64
 
 app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.DEBUG)
 
 parentDirectory = Path(__file__).parent
+imageDirectory = parentDirectory.joinpath("Image")
 model = keras.models.load_model(parentDirectory.joinpath("Model"))
 keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
 labelList = {0: "กรอบ",
@@ -100,29 +102,42 @@ def pictureToMatrix(imagePATH):
                 matrix, i = addLandMark(handCoordinates, 0, matrix, i)
         return matrix
     else:
-        #print("Fail to detect: " + str(imagePATH))
+        app.logger.info(f"Fail to detect: {imagePATH}")
         return None
 
 @app.route('/predictImage', methods=['POST'])
 def predictImage():
-    image = request.get_data()
-    app.logger.info(f"predictImage called, received: {image}")
-    return jsonify(image)
+    #Convert the dataURL received into png and save the path of the image
+    #Convert the dataURL into png because it could be convert to mediapipe image more easily
+    imageReceived = request.get_data()
+    binaryImage = a2b_base64(imageReceived[22:])
+    fd = open(str(imageDirectory.joinpath("image.png")), 'wb')
+    fd.write(binaryImage)
+    fd.close()
+    app.logger.info(f"Image saved")
+    imagePATH = imageDirectory.joinpath("image.png")
+
+    #Create dictionary holder
+    dataDict = {"label" : None,
+                "confidence" : None,
+                "inferenceTime" : None}
+
     startTime = time.perf_counter()
-    matrix = pictureToMatrix(image)
+    matrix = pictureToMatrix(imagePATH)
     if matrix != None:
-        #Preprocess matrix
+        #Preprocess matrix and save the prediction
         matrix = np.array(matrix).flatten()
         matrix = matrix.reshape((-1, 67*3, 1))
         matrix = tf.convert_to_tensor(matrix, dtype=tf.float16)
         prediction = model.predict(matrix, verbose=3)
 
-        inferenceTime = time.perf_counter() - startTime
-        predictedLabel = labelList[np.argmax(prediction)]
-        confidence = max(prediction[0]) * 100
-        return jsonify({"label" : predictedLabel,
-                        "confidence" : confidence,
-                        "inferenceTime" : inferenceTime})
+        #Add data to dictionary
+        dataDict["inferenceTime"] = time.perf_counter() - startTime
+        dataDict["predictedLabel"] = labelList[np.argmax(prediction)]
+        dataDict["confidence"] = max(prediction[0]) * 100
+        app.logger.info(dataDict)
+        return jsonify(dataDict) #Convert dictionary to json
+    return jsonify(dataDict)
 
 @app.route('/APIpostTest', methods=['POST'])
 def APIpostTest():
