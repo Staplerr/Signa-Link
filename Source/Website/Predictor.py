@@ -5,13 +5,17 @@ import numpy as np
 import mediapipe as mp
 from mediapipe.tasks.python import vision
 import time
-from flask import Flask
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import logging
 
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
-parentDirectory = Path(__file__).parent
-testDirectory = parentDirectory.joinpath("Test image")
-model = keras.models.load_model(parentDirectory.joinpath("Matrix model full"))
 app = Flask(__name__)
+CORS(app)
+logging.basicConfig(level=logging.DEBUG)
+
+parentDirectory = Path(__file__).parent
+model = keras.models.load_model(parentDirectory.joinpath("Model"))
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
 labelList = {0: "กรอบ",
              1: "กระเพรา",
              2: "ขา",
@@ -41,16 +45,6 @@ labelList = {0: "กรอบ",
              26: "หวาน",
              27: "องุ่น",
              28: "แอปเปิ้ล"}
-poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
-                      "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
-                      "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
-                      "left wrist", "right wrist", "left pinky", "right pinky", "left index",
-                      "right index","left thumb","right thumb","left hip","right hip"]
-handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
-                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
-                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
-                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
-                      "pinky tip"]
 
 def initiateMediapipeModel():
     #Pose/Hand detection model config
@@ -74,6 +68,7 @@ def initiateMediapipeModel():
     poseLandmarker = PoseLandmarker.create_from_options(poseOption)
     HandLandmarker = HandLandmarker.create_from_options(handOption)
     return poseLandmarker, HandLandmarker
+poseLandmarker, HandLandmarker = initiateMediapipeModel()
 
 def addLandMark(coordinates, index, matrix, i): #add landmark to list
     for landmark in coordinates[index]:
@@ -88,7 +83,7 @@ def pictureToMatrix(imagePATH):
     poseCoordinates = poseResult.pose_landmarks
     handCoordinates = handResult.hand_landmarks
     if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
-        matrix = [[0, 0, 0]] * (len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
+        matrix = [[0, 0, 0]] * 67
         i = 0
         #add landmarks to list
         for landmark in poseCoordinates[0][:25]:
@@ -108,20 +103,41 @@ def pictureToMatrix(imagePATH):
         #print("Fail to detect: " + str(imagePATH))
         return None
 
-poseLandmarker, HandLandmarker = initiateMediapipeModel()
-@app.post('/predict')
-def predictImage(image, minConfidence):
+@app.route('/predictImage', methods=['POST'])
+def predictImage():
+    image = request.get_data()
+    app.logger.info(f"predictImage called, received: {image}")
+    return jsonify(image)
+    startTime = time.perf_counter()
     matrix = pictureToMatrix(image)
     if matrix != None:
+        #Preprocess matrix
         matrix = np.array(matrix).flatten()
         matrix = matrix.reshape((-1, 67*3, 1))
         matrix = tf.convert_to_tensor(matrix, dtype=tf.float16)
         prediction = model.predict(matrix, verbose=3)
 
-        if max(prediction[0]) * 100 > minConfidence:
-            return labelList[np.argmax(prediction)]
+        inferenceTime = time.perf_counter() - startTime
+        predictedLabel = labelList[np.argmax(prediction)]
+        confidence = max(prediction[0]) * 100
+        return jsonify({"label" : predictedLabel,
+                        "confidence" : confidence,
+                        "inferenceTime" : inferenceTime})
 
-for file in testDirectory.glob("*.*"):
-    startTime = time.perf_counter()
-    prediction = predictImage(file, 50)
-    print(f"inference time: {time.perf_counter() - startTime} seconds")
+@app.route('/APIpostTest', methods=['POST'])
+def APIpostTest():
+    data = request.json
+    app.logger.info(f"receive POST request with data: {data}")
+    return jsonify(data)
+
+@app.route('/APIgetTest', methods=['GET'])
+def APIgetTest():
+    data = {"data" : "hi",
+            "data2" : "hello"}
+    app.logger.info(f"receive GET request, returned data: {data}")
+    return jsonify(data)
+
+#if __name__ == "__main__":
+#    print("running")
+#    app.run(debug=True)
+#    print("done")
