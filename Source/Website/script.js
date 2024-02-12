@@ -35,9 +35,9 @@ async function captureImage(stream){
   //Add frame to canvas so it could be convert to data URL later
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  canvas.width = photoBlob.width;
-  canvas.height = photoBlob.height;
-  context.drawImage(photoBlob, 0, 0);
+  canvas.width = 192; //Resize image to decrease load on the server
+  canvas.height = 144;
+  context.drawImage(photoBlob, 0, 0, canvas.width, canvas.height);
 
   const dataUrl = canvas.toDataURL(); // Convert to data URL
   return dataUrl; //Return promise
@@ -124,10 +124,12 @@ const handleStream = (stream) => {
   //Set up function so it could be use with interval
   function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
-      console.log(result);
+      if (result["label"] != null) {
+        console.log(result["label"]);
+      }
     });
   };
-  setInterval(getPrediction, 1000, stream)//Interval that with predict label of current frame!
+  setInterval(getPrediction, 200, stream)//Interval that with predict label of current frame!
 };
 
 getCameraSelection();

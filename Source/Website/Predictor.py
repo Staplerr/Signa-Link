@@ -60,7 +60,7 @@ def initiateMediapipeModel():
     HandLandmarkerOptions = vision.HandLandmarkerOptions
     VisionRunningMode = vision.RunningMode
     #create the landmarker object
-    poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("pose_landmarker_full.task")),
+    poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("pose_landmarker_lite.task")),
                                        running_mode=VisionRunningMode.IMAGE,
                                        min_pose_detection_confidence=minPoseConfidence)
     handOption = HandLandmarkerOptions(base_options=BaseOptions(model_asset_path=mediapipeModelDirectory.joinpath("hand_landmarker.task")),
@@ -102,7 +102,6 @@ def pictureToMatrix(imagePATH):
                 matrix, i = addLandMark(handCoordinates, 0, matrix, i)
         return matrix
     else:
-        app.logger.info(f"Fail to detect: {imagePATH}")
         return None
 
 @app.route('/predictImage', methods=['POST'])
@@ -114,7 +113,6 @@ def predictImage():
     fd = open(str(imageDirectory.joinpath("image.png")), 'wb')
     fd.write(binaryImage)
     fd.close()
-    app.logger.info(f"Image saved")
     imagePATH = imageDirectory.joinpath("image.png")
 
     #Create dictionary holder
@@ -133,11 +131,10 @@ def predictImage():
 
         #Add data to dictionary
         dataDict["inferenceTime"] = time.perf_counter() - startTime
-        dataDict["predictedLabel"] = labelList[np.argmax(prediction)]
+        dataDict["label"] = labelList[np.argmax(prediction)]
         dataDict["confidence"] = max(prediction[0]) * 100
-        app.logger.info(dataDict)
-        return jsonify(dataDict) #Convert dictionary to json
-    return jsonify(dataDict)
+    app.logger.info(f"Returned: {dataDict}")
+    return jsonify(dataDict) #Convert dictionary to json
 
 @app.route('/APIpostTest', methods=['POST'])
 def APIpostTest():
