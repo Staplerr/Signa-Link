@@ -2,6 +2,10 @@ feather.replace();
 
 const minConfidence = 0.5;
 
+const labelOutput = document.getElementById("label-output");
+const confidenceOutput = document.getElementById("confidence-output");
+const inferenceTimeOutput = document.getElementById("inference-time-output");
+
 const controls = document.querySelector('.controls');
 const cameraOptions = document.querySelector('.video-options>select');
 const video = document.querySelector('video');
@@ -125,11 +129,15 @@ const handleStream = (stream) => {
   function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
       if (result["label"] != null) {
-        console.log(result["label"]);
+        console.log(result);
+        //const node = document.createTextNode(result["label"])
+        labelOutput.innerHTML = "Output: " + result["label"];
+        confidenceOutput.innerHTML = "Confidence: " + result["confidence"] + "%";
+        inferenceTimeOutput.innerHTML = "Inference time: " + result["inferenceTime"] + "s";
       }
     });
   };
-  setInterval(getPrediction, 200, stream)//Interval that with predict label of current frame!
+  setInterval(getPrediction, 100, stream)//Interval that with predict label of current frame!
 };
 
 getCameraSelection();
