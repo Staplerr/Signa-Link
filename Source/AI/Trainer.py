@@ -6,13 +6,12 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 import ast
-import random
 import time
 
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
-batchSize = 256
-
 parentDirectory = Path(__file__).parent
+datasetType = "smol"
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
+batchSize = 512
 labelList = {"กรอบ": 0,
              "กระเพรา": 1,
              "ขา": 2,
@@ -44,7 +43,9 @@ labelList = {"กรอบ": 0,
              "แอปเปิ้ล": 28}
 
 def preprocessData(dataset):
-    label = tf.convert_to_tensor(dataset["Label"].values, dtype=tf.int8)
+    label = dataset["Label"].values
+    #label = tf.convert_to_tensor(label, dtype=tf.int8) #Convert to tensor
+
     stringData = dataset.drop(["Label"], axis=1)
     columnNames = [f'{i}' for i in range(len(stringData.columns))]
     data = pd.DataFrame(columns=columnNames)
@@ -60,34 +61,44 @@ def preprocessData(dataset):
     #convert the 2D ndarray into 1D ndarray or converting [[x,y,z],[x,y,z],[x,y,z],...] to [x,y,z,x,y,z,x,y,z,...] with np.concatenate() function
     data = np.concatenate(data.to_numpy().flatten())
     data = data.reshape((-1, len(stringData.columns)*3, 1)) #sperate ndarray into multiple one corresponding to its label
-    data = tf.convert_to_tensor(data, dtype=tf.float16)
+    #data = tf.convert_to_tensor(data, dtype=tf.float16) #Convert to tensor
     return data, label
 
+def splitData(data, label, ratio):
+    #trainData, testData = np.split(data, int(ratio * len(data)))
+    #trainLabel, testLabel = np.split(label, int(ratio * len(label)))
+    trainData = data[0:int(ratio * len(data))]
+    testData = data[int(ratio * len(data)):-1]
+
+    trainLabel = label[0:int(ratio * len(label))]
+    testLabel = label[int(ratio * len(label)):-1]
+    return trainData, testData, trainLabel, testLabel
+
 #Preparing dataset
-dataset = pd.read_excel(parentDirectory.joinpath("BIG dataset.xlsx"))
+dataset = pd.read_excel(parentDirectory.joinpath(f"{datasetType} dataset.xlsx"))
 loadStart = time.perf_counter()
 data, label = preprocessData(dataset)
+trainData, testData, trainLabel, testLabel = splitData(data, label, 0.8)
 loadFinish = time.perf_counter()
-#seed = random.randint(0, 1000) #Set seed to make sure the data and label will be shuffle in the same order
-#data = tf.random.shuffle(data, seed=seed)
-#label = tf.random.shuffle(label, seed=seed)
-print(data)
-print(label)
 print(f"Dataset load time: {loadFinish - loadStart}")
-del dataset 
+print(len(data))
+print(len(trainData))
+del dataset
 
 model = keras.models.Sequential([
     layers.Flatten(input_shape=(201, 1)),
+    layers.Dropout(0.5),
     layers.Dense(256, activation=nn.relu),
-    layers.Dense(512, activation=nn.relu),
+    layers.Dropout(0.2),
     layers.Dense(256, activation=nn.relu),
-    layers.Dense(128, activation=nn.leaky_relu),
-    layers.Dropout(0.3),
-    layers.Dense(len(labelList), activation=nn.softmax) 
+    layers.Dense(len(labelList), activation=nn.softmax)
 ])
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
+model.compile(optimizer=keras.optimizers.Adam,
+              loss=keras.losses.SparseCategoricalCrossentropy,
               metrics=['accuracy'])
-model.fit(data, label, epochs=50, batch_size=batchSize)
-model.evaluate(data, label, batch_size=batchSize)
-model.save(str(parentDirectory.joinpath("Matrix model full")))
+trainStart = time.perf_counter()
+model.fit(trainData, trainLabel, epochs=50, batch_size=batchSize)
+model.evaluate(testData, testLabel, batch_size=batchSize)
+trainEnd = time.perf_counter()
+model.save(str(parentDirectory.joinpath(f"Matrix model {datasetType}")))
+print(f"Training time: {trainEnd - trainStart}")

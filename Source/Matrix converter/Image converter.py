@@ -9,7 +9,7 @@ import time
 #path variable
 parentPath = Path(__file__).parent
 print("Parent directory: " + str(parentPath))
-inputDirectory = parentPath.joinpath("Output/")
+inputDirectory = parentPath.joinpath("Images/")
 outputFile = parentPath.joinpath("image output" + ".xlsx")
 modelDirectory = parentPath.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
