@@ -51,7 +51,7 @@ batchSize = int(configFile['Options']['batchSize'])
 datasetType = configFile['Options']['datasetSize']
 
 keras.mixed_precision.set_global_policy(policy)
-ouputModel = f"Matrix_model_{policy}_{datasetType}"
+ouputName = f"Matrix_model_{policy}_{datasetType}"
 
 def preprocessData(dataset):
     label = dataset["Label"].values
@@ -92,24 +92,28 @@ data, label = preprocessData(dataset)
 trainData, testData, trainLabel, testLabel = splitData(data, label, 0.8)
 loadFinish = time.perf_counter()
 print(f"Dataset load time: {loadFinish - loadStart}")
-print(f"Total row in train dataset: {len(trainData)}, Total row in test dataset: {len(testData)} ")
+print(f"Total data in train dataset: {len(trainData)}, Total data in test dataset: {len(testData)} ")
 del dataset
 
 model = keras.models.Sequential([
     layers.Flatten(input_shape=(201, 1)),
-    layers.Dropout(0.5),
-    layers.Dense(256, activation=nn.relu),
-    layers.Dropout(0.2),
-    layers.Dense(256, activation=nn.relu),
+    layers.Dense(1024, activation=nn.leaky_relu),
+    layers.Dense(1024, activation=nn.relu),
+    #layers.Dropout(0.3),
+    layers.Dense(512, activation=nn.relu),
+    layers.Dropout(0.3),
     layers.Dense(len(labelList), activation=nn.softmax)
 ])
 model.compile(optimizer=keras.optimizers.Adam(),
               loss=keras.losses.SparseCategoricalCrossentropy(),
               metrics=['accuracy'])
+model.summary()
 trainStart = time.perf_counter()
 model.fit(trainData, trainLabel, epochs=50, batch_size=batchSize)
 model.evaluate(testData, testLabel, batch_size=batchSize)
 
 trainEnd = time.perf_counter()
-model.save(str(parentDirectory.joinpath(f"Matrix model/{ouputModel}")))
+model.save(str(parentDirectory.joinpath(f"Matrix model/{ouputName}")))
+keras.utils.plot_model(model, str(parentDirectory.joinpath(f"Matrix model/{ouputName}/architecture.png")),
+                       show_shapes=True, dpi=256)
 print(f"Training time: {trainEnd - trainStart}")
