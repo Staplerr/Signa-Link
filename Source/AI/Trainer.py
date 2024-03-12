@@ -7,11 +7,9 @@ from pathlib import Path
 import numpy as np
 import ast
 import time
+import configparser
 
 parentDirectory = Path(__file__).parent
-datasetType = "smol"
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
-batchSize = 512
 labelList = {"กรอบ": 0,
              "กระเพรา": 1,
              "ขา": 2,
@@ -41,6 +39,17 @@ labelList = {"กรอบ": 0,
              "หวาน": 26,
              "องุ่น": 27,
              "แอปเปิ้ล": 28}
+configFilePath = parentDirectory.joinpath("config.cfg")
+if not configFilePath.exists():
+    raise Exception("No config file found")
+configFile = configparser.RawConfigParser()
+configFile.read(configFilePath)
+
+#Change preference in config.cfg
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy(configFile['Options']['policy']))
+batchSize = configFile['Options']['batchSize']
+datasetType = configFile['Options']['datasetSize']
+ouputModel = f"Matrix_model_{configFile['Options']['policy']}_{configFile['Options']['datasetSize']}"
 
 def preprocessData(dataset):
     label = dataset["Label"].values
@@ -100,5 +109,5 @@ trainStart = time.perf_counter()
 model.fit(trainData, trainLabel, epochs=50, batch_size=batchSize)
 model.evaluate(testData, testLabel, batch_size=batchSize)
 trainEnd = time.perf_counter()
-model.save(str(parentDirectory.joinpath(f"Matrix model {datasetType}")))
+model.save(str(parentDirectory.joinpath(f"Matrix model/{ouputModel}")))
 print(f"Training time: {trainEnd - trainStart}")
