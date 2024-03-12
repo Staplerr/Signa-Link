@@ -46,10 +46,12 @@ configFile = configparser.RawConfigParser()
 configFile.read(configFilePath)
 
 #Change preference in config.cfg
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy(configFile['Options']['policy']))
-batchSize = configFile['Options']['batchSize']
+policy = configFile['Options']['policy']
+batchSize = int(configFile['Options']['batchSize'])
 datasetType = configFile['Options']['datasetSize']
-ouputModel = f"Matrix_model_{configFile['Options']['policy']}_{configFile['Options']['datasetSize']}"
+
+keras.mixed_precision.set_global_policy(policy)
+ouputModel = f"Matrix_model_{policy}_{datasetType}"
 
 def preprocessData(dataset):
     label = dataset["Label"].values
@@ -90,8 +92,7 @@ data, label = preprocessData(dataset)
 trainData, testData, trainLabel, testLabel = splitData(data, label, 0.8)
 loadFinish = time.perf_counter()
 print(f"Dataset load time: {loadFinish - loadStart}")
-print(len(data))
-print(len(trainData))
+print(f"Total row in train dataset: {len(trainData)}, Total row in test dataset: {len(testData)} ")
 del dataset
 
 model = keras.models.Sequential([
@@ -102,12 +103,13 @@ model = keras.models.Sequential([
     layers.Dense(256, activation=nn.relu),
     layers.Dense(len(labelList), activation=nn.softmax)
 ])
-model.compile(optimizer=keras.optimizers.Adam,
-              loss=keras.losses.SparseCategoricalCrossentropy,
+model.compile(optimizer=keras.optimizers.Adam(),
+              loss=keras.losses.SparseCategoricalCrossentropy(),
               metrics=['accuracy'])
 trainStart = time.perf_counter()
 model.fit(trainData, trainLabel, epochs=50, batch_size=batchSize)
 model.evaluate(testData, testLabel, batch_size=batchSize)
+
 trainEnd = time.perf_counter()
 model.save(str(parentDirectory.joinpath(f"Matrix model/{ouputModel}")))
 print(f"Training time: {trainEnd - trainStart}")
