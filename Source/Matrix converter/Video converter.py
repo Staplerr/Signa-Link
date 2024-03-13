@@ -1,19 +1,27 @@
 import mediapipe as mp
 from mediapipe.tasks.python import vision
-import numpy as np
 import pandas as pd
-from pathlib import Path
-import os
+import time
 import cv2
+from pathlib import Path
+import time
+import multiprocessing
 
 #path variable
-parentPath = Path(__file__).parent
-print("Parent directory: " + str(parentPath))
-inputDirectory = parentPath.joinpath("Input/")
-outputFile = parentPath.joinpath("video output" + ".xlsx")
-modelDirectory = parentPath.joinpath("Model")
+parentDirectory = Path(__file__).parent
+inputDirectory = parentDirectory.joinpath("Videos")
+outputFile = parentDirectory.joinpath("image output" + ".xlsx")
+modelDirectory = parentDirectory.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
 poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
+
+#video reading config
+supportsExtension = ["*/*.mp4", "*/*.mov"]
+sample = 5 #Save frame every n frame
+processes = []
+processesCount = 10
+
+#initiate dataframe
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
                       "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
                       "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
@@ -24,40 +32,29 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
+columnNames = ["Label"]
+for i in range():
+    for columnName in poseColumnNameList:
+        columnNames.append(f"columnName_{i}")
+    for columnName in handColumnNameList:
+        columnNames.append(f"right_{columnName}_{i}")
+    for columnName in handColumnNameList:
+        columnNames.append(f"left_{columnName}_{i}")
+df = pd.DataFrame(columns=columnNames)
 #list for converting label into a number
-labelList = {"กรอบ": 0,
-             "กระเพรา": 1,
-             "ขา": 2,
-             "ข้าว": 3,
-             "ไข่": 4,
-             "คะน้า": 5,
-             "เค็ม": 6,
-             "โจ๊ก": 7,
-             "แดง": 8,
-             "ต้ม": 9,
-             "แตงโม": 10,
-             "น้ำพริกเผา": 11,
-             "บะหมี่": 12,
-             "เปรี้ยว": 13,
-             "ผัด": 14,
-             "ฝรั่ง": 15,
-             "พริกแกง": 16,
-             "มะม่วง": 17,
-             "ม้า": 18,
-             "มาม่า": 19,
-             "ลูกชิ้นปลา": 20,
-             "เลือด": 21,
-             "สับ": 22,
-             "เส้นเล็ก": 23,
-             "เส้นใหญ่": 24,
-             "หมู": 25,
-             "หวาน": 26,
-             "องุ่น": 27,
+labelList = {"กรอบ": 0,     "กระเพรา": 1,    "ขา": 2,       "ข้าว": 3,
+             "ไข่": 4,       "คะน้า": 5,      "เค็ม": 6,       "โจ๊ก": 7,
+             "แดง": 8,      "ต้ม": 9,        "แตงโม": 10,    "น้ำพริกเผา": 11,
+             "บะหมี่": 12,    "เปรี้ยว": 13,    "ผัด": 14,       "ฝรั่ง": 15,
+             "พริกแกง": 16,  "มะม่วง": 17,    "ม้า": 18,       "มาม่า": 19,
+             "ลูกชิ้นปลา": 20, "เลือด": 21,     "สับ": 22,       "เส้นเล็ก": 23,
+             "เส้นใหญ่": 24,  "หมู": 25,       "หวาน": 26,     "องุ่น": 27,
              "แอปเปิ้ล": 28}
-#Config
-removeUnusableImage = True
+
+#mediapipe config
 minPoseConfidence = 0.5
 minHandConfidence = 0.5
+
 BaseOptions = mp.tasks.BaseOptions
 PoseLandmarker = vision.PoseLandmarker
 PoseLandmarkerOptions = vision.PoseLandmarkerOptions
@@ -76,15 +73,20 @@ handOption = HandLandmarkerOptions(base_options=BaseOptions(model_asset_path=han
 poseLandmarker = PoseLandmarker.create_from_options(poseOption)
 HandLandmarker = HandLandmarker.create_from_options(handOption)
 
-#initiate dataframe
-columnNames = ["Label"]
-for columnName in poseColumnNameList:
-    columnNames.append(columnName)
-for columnName in handColumnNameList:
-    columnNames.append("right " + columnName)
-for columnName in handColumnNameList:
-    columnNames.append("left " + columnName)
-df = pd.DataFrame(columns=columnNames)
+def getFilePATHS(directory):
+    videoPATHs = []
+    for extension in supportsExtension: #Collect file that has mp4 and mov file extension
+        for file in directory.glob(extension):
+            videoPATHs.append(file)
+    print(f"total files: {len(videoPATHs)}")
+    return videoPATHs
+
+def splitList(list):
+    step = len(list) // processesCount
+    remain = len(list) % processesCount
+    for i in range(0, len(list), step):
+        yield list[i:i + step + remain] #return multiple 1D list
+        remain = 0
 
 #function for adding landmarks on 
 def addLandMark(coordinates, index, value, i): #add landmark to list
@@ -92,54 +94,84 @@ def addLandMark(coordinates, index, value, i): #add landmark to list
         value[i] = [landmark.x, landmark.y, landmark.z]
         i += 1
     return value, i
-def toDataFrame(frame, label, videoPATH): #convert image path to be added to dataframe
-    image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame) #convert ndarray to mp image class
-    poseResult = poseLandmarker.detect(image)
-    handResult = HandLandmarker.detect(image)
-    poseCoordinates = poseResult.pose_landmarks
-    handCoordinates = handResult.hand_landmarks
-    if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
-        print("Adding " + videoPATH.name + " to dataframe as " + label + " to index " + str(len(df)))
-        value = [[0, 0, 0]] * (1 + len(poseColumnNameList) + len(handColumnNameList) * 2) #0 = label, 1-25 = pose, 26-46 = right hand 47-67 = left hand
-        value[0] = labelList[label] #convert label to number to make it easier to use with neural network
-        i = 1
-        #add landmarks to list
-        for landmark in poseCoordinates[0][:25]:
-            value[i] = [landmark.x, landmark.y, landmark.z]
-            i += 1
-        if len(handCoordinates) > 1:
-            value, i = addLandMark(handCoordinates, 0, value, i)
-            value, i = addLandMark(handCoordinates, 1, value, i)
-        else:
-            if handResult.handedness[0][0].category_name == "Left":
-                i += 21
+def toDataFrame(images, label): #convert image path to be added to dataframe
+    print("Adding " + images.name + " to dataframe as " + label + " to index " + str(len(df)))
+    value = [[0, 0, 0]] * len(columnNames)
+    value[0] = labelList[label] #convert label to number to make it easier to use with neural network
+    i = 1
+    for image in images:
+        image = mp.Image.create_from_file(str(images))
+        poseResult = poseLandmarker.detect(image)
+        handResult = HandLandmarker.detect(image)
+        poseCoordinates = poseResult.pose_landmarks
+        handCoordinates = handResult.hand_landmarks
+        if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
+            #add landmarks to list
+            for landmark in poseCoordinates[0][:25]:
+                value[i] = [landmark.x, landmark.y, landmark.z]
+                i += 1
+            if len(handCoordinates) > 1:
                 value, i = addLandMark(handCoordinates, 0, value, i)
+                value, i = addLandMark(handCoordinates, 1, value, i)
             else:
-                value, i = addLandMark(handCoordinates, 0, value, i)
-        #add landmarks to dataframe
-        df.loc[len(df)] = value
-    #else:
-    #    print("Fail to add " + videoPATH.name + " to " + label) #unable to detect either pose or hand coordinates
-    #    if removeUnusableImage:
-    #        os.remove(videoPATH)
-def process_image(videoPATH, label):
-    cap = cv2.VideoCapture(str(videoPATH))
-    while cap.isOpened():
-        success, frame = cap.read()
-        if success:
-            frameArray = np.asarray(frame[:,:]) #convert opencv mat to ndarray so it is readable by mp image class
-            toDataFrame(frameArray, label, videoPATH)
-        else:
-            break
-    cap.release()
+                if handResult.handedness[0][0].category_name == "Left":
+                    i += 21
+                    value, i = addLandMark(handCoordinates, 0, value, i)
+                else:
+                    value, i = addLandMark(handCoordinates, 0, value, i)
+            #add landmarks to dataframe
+            df.loc[len(df)] = value
 
-#"g o o d s t u f f"
-imageSubdirectory = inputDirectory.iterdir()
-for childDirectory in imageSubdirectory:
-    if childDirectory.is_dir():
-        for video in childDirectory.glob("**/*.mp4"):   #reading all image in input directory
-            label = childDirectory.name                 #saving directory name to use as index name
-            process_image(video, label)
+def save_frames(videoPATHs):
+    try:    
+        for videoPATH in videoPATHs:
+            flipping = True #don't even know what to name this
+            frames = []
+            label = videoPATH.parent.name
+
+            cap = cv2.VideoCapture(str(videoPATH))
+            currentFrame = 0
+
+            while cap.isOpened:
+                ret, frame = cap.read()
+                if ret:
+                    if currentFrame / sample - currentFrame // sample == 0: #check if the current frame is the sample frame
+                        frames.append(frame)
+                    currentFrame += 1
+                else:
+                    break
+            while len(frames) > 10: #remove frame untile the frames list contain only 10 frame
+                if flipping:
+                    frames.pop(0)
+                else:
+                    frames.pop()
+                flipping = not flipping
+            cap.release()
+            toDataFrame(frames, label)
+    except:
+        pass
+
+startTime = time.perf_counter()
+
+print(inputDirectory)
+videoPATHs = getFilePATHS(inputDirectory)
+videoPATHsList = list(splitList(videoPATHs))
+del videoPATHs #hopefully it will freeup some memory
+
+for i in range(processesCount): #initiate process
+    p = multiprocessing.Process(target=save_frames, args=[videoPATHsList[i]])
+    p.start()
+    processes.append(p)
+for process in processes: #wait for process to end
+    process.join()
+
+del videoPATHsList
+del processes
+
+df = df.sample(frac=1) #Shuffle dataframe
 print("Output dataframe:")
 print(df)
 df.to_excel(outputFile, index=False)
+
+finishTime = time.perf_counter()
+print(f"total time: {finishTime - startTime}")
