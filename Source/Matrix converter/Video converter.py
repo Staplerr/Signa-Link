@@ -20,6 +20,7 @@ supportsExtension = ["*/*.mp4", "*/*.mov"]
 sample = 5 #Save frame every n frame
 processes = []
 processesCount = 10
+frameBuffer = 10
 
 #initiate dataframe
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
@@ -33,7 +34,7 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
 columnNames = ["Label"]
-for i in range():
+for i in range(frameBuffer):
     for columnName in poseColumnNameList:
         columnNames.append(f"columnName_{i}")
     for columnName in handColumnNameList:
@@ -94,79 +95,89 @@ def addLandMark(coordinates, index, value, i): #add landmark to list
         value[i] = [landmark.x, landmark.y, landmark.z]
         i += 1
     return value, i
-def toDataFrame(images, label): #convert image path to be added to dataframe
-    print("Adding " + images.name + " to dataframe as " + label + " to index " + str(len(df)))
+def toDataFrame(frames, label, nextRow): #convert image path to be added to dataframe
     value = [[0, 0, 0]] * len(columnNames)
     value[0] = labelList[label] #convert label to number to make it easier to use with neural network
     i = 1
-    for image in images:
-        image = mp.Image.create_from_file(str(images))
-        poseResult = poseLandmarker.detect(image)
-        handResult = HandLandmarker.detect(image)
+    for index, frame in enumerate(frames):
+        i = 1 + (len(poseColumnNameList) + len(handColumnNameList) * 2) * index
+        #print(f"column: {len(poseColumnNameList) + len(handColumnNameList) * 2}")
+        #print(f"index: {index}")
+        #print(f"column * index: {(len(poseColumnNameList) + len(handColumnNameList) * 2) * index}")
+        #print(f"i: {i}")
+        frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=(frame))
+        poseResult = poseLandmarker.detect(frame)
+        handResult = HandLandmarker.detect(frame)
         poseCoordinates = poseResult.pose_landmarks
         handCoordinates = handResult.hand_landmarks
-        if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
+        if len(poseCoordinates) > 0: #check if the pose and hand could be detect in the first place
             #add landmarks to list
             for landmark in poseCoordinates[0][:25]:
                 value[i] = [landmark.x, landmark.y, landmark.z]
                 i += 1
-            if len(handCoordinates) > 1:
+            if len(handCoordinates) == 2:
                 value, i = addLandMark(handCoordinates, 0, value, i)
                 value, i = addLandMark(handCoordinates, 1, value, i)
-            else:
+            elif len(handCoordinates) == 1:
                 if handResult.handedness[0][0].category_name == "Left":
                     i += 21
-                    value, i = addLandMark(handCoordinates, 0, value, i)
-                else:
-                    value, i = addLandMark(handCoordinates, 0, value, i)
-            #add landmarks to dataframe
-            df.loc[len(df)] = value
+                value, i = addLandMark(handCoordinates, 0, value, i)
+            
+    #print(f"Value: {len(value)}")
+    #print(f"column: {len(df.columns)}")
+                
+    #add landmarks to dataframe
+    df.loc[nextRow] = value
 
-def save_frames(videoPATHs):
-    try:    
-        for videoPATH in videoPATHs:
-            flipping = True #don't even know what to name this
-            frames = []
-            label = videoPATH.parent.name
+def saveFrames(videoPATHs, nextrow):
+    for videoPATH in videoPATHs:
+        flipping = True #don't even know what to name this
+        frames = []
+        label = videoPATH.parent.name
+        print(f"Adding: {videoPATH.name} to dataframe as: {label} to index: {str(len(df))}")
 
-            cap = cv2.VideoCapture(str(videoPATH))
-            currentFrame = 0
+        cap = cv2.VideoCapture(str(videoPATH))
+        currentFrame = 0
 
-            while cap.isOpened:
-                ret, frame = cap.read()
-                if ret:
-                    if currentFrame / sample - currentFrame // sample == 0: #check if the current frame is the sample frame
-                        frames.append(frame)
-                    currentFrame += 1
-                else:
-                    break
-            while len(frames) > 10: #remove frame untile the frames list contain only 10 frame
-                if flipping:
-                    frames.pop(0)
-                else:
-                    frames.pop()
-                flipping = not flipping
-            cap.release()
-            toDataFrame(frames, label)
-    except:
-        pass
+        while cap.isOpened:
+            ret, frame = cap.read()
+            if ret:
+                if currentFrame / sample - currentFrame // sample == 0: #check if the current frame is the sample frame
+                    frames.append(frame)
+                    #cv2.imshow(f"name: {videoPATH} frame: {currentFrame}", frame)
+                currentFrame += 1
+            else:
+                break
+        while len(frames) > frameBuffer: #remove frame untile the frames list contain only 10 frame
+            if flipping:
+                frames.pop(0)
+            else:
+                frames.pop()
+            flipping = not flipping
+        cap.release()
+        toDataFrame(frames, label, nextrow)
+        nextrow += 1
 
 startTime = time.perf_counter()
 
 print(inputDirectory)
 videoPATHs = getFilePATHS(inputDirectory)
-videoPATHsList = list(splitList(videoPATHs))
-del videoPATHs #hopefully it will freeup some memory
+#videoPATHsList = list(splitList(videoPATHs))
+#del videoPATHs #hopefully it will freeup some memory
 
-for i in range(processesCount): #initiate process
-    p = multiprocessing.Process(target=save_frames, args=[videoPATHsList[i]])
-    p.start()
-    processes.append(p)
-for process in processes: #wait for process to end
-    process.join()
+saveFrames(videoPATHs, 0)
 
-del videoPATHsList
-del processes
+#nextRow = 0 #don't even know what to name this
+#for i in range(processesCount): #initiate process
+#    p = multiprocessing.Process(target=saveFrames, args=[videoPATHsList[i], nextRow])
+#    p.start()
+#    processes.append(p)
+#    nextRow += len(videoPATHsList[i])
+#for process in processes: #wait for process to end
+#    process.join()
+#
+#del videoPATHsList
+#del processes
 
 df = df.sample(frac=1) #Shuffle dataframe
 print("Output dataframe:")
