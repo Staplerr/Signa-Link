@@ -9,19 +9,29 @@ import time
 import os
 import numpy as np
 
+#Directory
 parentDirectory = Path(__file__).parent
 inputDirectory = parentDirectory.joinpath("Videos")
-outputFile = parentDirectory.joinpath("image output" + ".xlsx")
+tempDirectory = parentDirectory.joinpath("Temp")
+if not tempDirectory.exists():
+    tempDirectory.mkdir(parents=True)
+outputFile = parentDirectory.joinpath("Output.csv")
+
+#Opencv config
+sample = 5 #Save frame every n frame
+frameBuffer = 10 #Number of frame that will be included inside the dataframe
+resizeRation = 10
+resizeInterpolation = cv2.INTER_AREA
+
+#mp models
 modelDirectory = parentDirectory.joinpath("Model")
 handModel = modelDirectory.joinpath("hand_landmarker.task")
 poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
 
+#For reading all file in video folder
 supportsExtension = ["*/*.mp4", "*/*.mov"]
-sample = 5 #Save frame every n frame
-frameBuffer = 10
-processes = []
-processesCount = 10
 
+#Dataframe
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
                       "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
                       "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
@@ -78,58 +88,133 @@ def getFilePATHS(directory):
     for extension in supportsExtension: #Collect file that has mp4 and mov file extension
         for file in directory.glob(extension):
             videoPATHs.append(file)
-    print(f"total files: {len(videoPATHs)}")
     return videoPATHs
 
-def splitList(list):
-    step = len(list) // processesCount
-    remain = len(list) % processesCount
-    for i in range(0, len(list), step):
-        yield list[i:i + step + remain] #return multiple 1D list
-        remain = 0
 
-#Re-written
 def addLandmarks(coordinates, array):
-    if type(coordinates[0]) == mpLandmark.NormalizedLandmark:
+    if type(coordinates[0]) == mpLandmark.Landmark:
         for landmark in coordinates:
             value = np.array([landmark.x, landmark.y, landmark.z], dtype=np.float16)
             array = np.vstack([array, value])
     else:
         for filler in coordinates:
             array = np.vstack([array, filler])
-    return array
+    return array #Return 2D np array
+
 
 def generateFrameLandmarks(frame):
     frame = mp.Image.create_from_file(frame)
-    poseResult = poseLandmarker.detect(frame)
-    handResult = handLandmarker.detect(frame)
-    poseCoordinates = poseResult.pose_landmarks
+
+    poseResult = poseLandmarker.detect(image=frame)
+    poseCoordinates = poseResult.pose_world_landmarks
+    if len(poseCoordinates) == 0:
+        return None
+    handResult = handLandmarker.detect(image=frame)
     handedness = handResult.handedness 
-    handCoordinates = handResult.hand_landmarks
+    handCoordinates = handResult.hand_world_landmarks
 
     coordinatesArray = np.empty((3, ), dtype=np.float16)
     coordinatesArray = addLandmarks(poseCoordinates[0][:25], coordinatesArray)
-    coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declaire the empty array
-    for index, category in enumerate(handedness):
-        if len(handCoordinates) < 2: #check if mp detect only one hand
+    if len(handedness) == 0: #check if no hand is detect
+        for i in range(2):
             filler = np.zeros(shape=(len(handColumnNameList), 3), dtype=np.float16)
-            if category[index].index == 0: #detect right
+            coordinatesArray = addLandmarks(filler, coordinatesArray)
+    else: #execute if hand is detect
+        for index, category in enumerate(handedness):
+            if len(handCoordinates) == 1: #check if mp detect only one hand
+                filler = np.zeros(shape=(len(handColumnNameList), 3), dtype=np.float16)
+                if category[index].index == 0: #detect right
+                    coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
+                    coordinatesArray = addLandmarks(filler, coordinatesArray)
+                else: #detect left
+                    coordinatesArray = addLandmarks(filler, coordinatesArray)
+                    coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
+                break
+            else:
                 coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
-                coordinatesArray = addLandmarks(filler, coordinatesArray)
-            else: #detect left
-                coordinatesArray = addLandmarks(filler, coordinatesArray)
-                coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
-            break
+
+    coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
+    return coordinatesArray #return 2D np array
+
+
+def removeExcessLandmarks(startArray): #This definitely will break if length of input array is lower than sample * frameBuffer
+    array = []
+    middlePosition = int(np.ceil(len(startArray) / 2)) - 1 #Middle position of input array, median?
+    array.append(startArray[middlePosition])
+    currentValuePosition = [middlePosition, middlePosition] #Use for calculate which is the next position needed to be add to array.
+    addToBack = True
+    
+    #Jam landmarks into available spot
+    while len(array) < frameBuffer:
+        direction = int(addToBack) #0 = front, 1 = back
+        positionToAdd = direction * len(array) #Position to add element to the array that got return
+        valuePosition = currentValuePosition[direction] + (sample * (direction * 2 - 1)) #Position in the startArray that will be added to return array
+        #Check if the index is out of range, if so then it will move closer to last position
+        while True:
+            try:
+                if valuePosition < 0: #Preventing from adding the value that have been count from the back of startArray.
+                    raise IndexError
+                array.insert(positionToAdd, startArray[valuePosition])
+                break
+            except IndexError:
+                valuePosition -= (direction * 2 - 1)
+        currentValuePosition[direction] = valuePosition
+        addToBack = not addToBack
+
+    #return array
+    return np.array(array, dtype=np.float16)
+
+
+def videoToLandmarks(videoPATH):
+    landmarks = []
+    cap = cv2.VideoCapture(str(videoPATH))
+    currentFrame = 0
+
+    #capture all frame the video has
+    while cap.isOpened:
+        ret, frame = cap.read()
+        if ret:
+            file = tempDirectory.joinpath(f"{videoPATH.name}_{currentFrame}.png")
+            #np array = impossible to detect hand, image file = really easy to detect
+            height = int(np.floor(frame.shape[0] / resizeRation))
+            width = int(np.floor(frame.shape[1] / resizeRation))
+            frame = cv2.resize(frame, (width, height), interpolation=resizeInterpolation)
+            cv2.imwrite(str(file), frame)
+
+            landmarkResult = generateFrameLandmarks(str(file))
+            if type(landmarkResult) == np.ndarray: #Prevent from adding frame that no pose has been detected
+                landmarks.append(landmarkResult) #Array of 2D np array
+            os.remove(file)
+            currentFrame += 1
         else:
-            coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
-    print(coordinatesArray)
-    print(len(coordinatesArray))
-    return coordinatesArray #return np array
+            break
+    cap.release()
+    
+    landmarks = removeExcessLandmarks(landmarks)
+    return landmarks #Return "3D" np array
 
-bothIMG = parentDirectory.joinpath('Images/กรอบ/IMG_0189_50.png')
-leftIMG = parentDirectory.joinpath('Images/กระเพรา/IMG_0199_25.png')
-rightIMG =parentDirectory.joinpath('Images/เปรี้ยว/VID_20240123200118_0.png')
 
-path = rightIMG
-label = path.parent
-generateFrameLandmarks(str(path), str(label))
+startTime = time.perf_counter()
+
+videoPaths = getFilePATHS(inputDirectory)
+totalFile = len(videoPaths)
+for index, video in enumerate(videoPaths):
+    label = labelList[video.parent.name]
+
+    landmarks = videoToLandmarks(video)
+    landmarks = landmarks.reshape((-1, 3))
+    landmarks = landmarks.tolist()
+    landmarks.insert(0, label)
+
+    df.loc[len(df)] = landmarks
+    print(f"Progress: {index + 1} / {totalFile}")
+dataProcessTime = time.perf_counter()
+
+df = df.sample(frac=1) #Shuffle dataframe
+shuffleTime = time.perf_counter()
+print(df)
+df.to_csv(outputFile, index=False)
+finishTime = time.perf_counter()
+print(f"Data process time: {dataProcessTime - startTime} second")
+print(f"Shuffle time: {shuffleTime - dataProcessTime} second")
+print(f"Save time: {finishTime - shuffleTime} second")
