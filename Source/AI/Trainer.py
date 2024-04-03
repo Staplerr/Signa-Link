@@ -10,34 +10,13 @@ import time
 import configparser
 
 parentDirectory = Path(__file__).parent
-labelList = {"กรอบ": 0,
-             "กระเพรา": 1,
-             "ขา": 2,
-             "ข้าว": 3,
-             "ไข่": 4,
-             "คะน้า": 5,
-             "เค็ม": 6,
-             "โจ๊ก": 7,
-             "แดง": 8,
-             "ต้ม": 9,
-             "แตงโม": 10,
-             "น้ำพริกเผา": 11,
-             "บะหมี่": 12,
-             "เปรี้ยว": 13,
-             "ผัด": 14,
-             "ฝรั่ง": 15,
-             "พริกแกง": 16,
-             "มะม่วง": 17,
-             "ม้า": 18,
-             "มาม่า": 19,
-             "ลูกชิ้นปลา": 20,
-             "เลือด": 21,
-             "สับ": 22,
-             "เส้นเล็ก": 23,
-             "เส้นใหญ่": 24,
-             "หมู": 25,
-             "หวาน": 26,
-             "องุ่น": 27,
+labelList = {"กรอบ": 0,     "กระเพรา": 1,    "ขา": 2,       "ข้าว": 3,
+             "ไข่": 4,       "คะน้า": 5,      "เค็ม": 6,       "โจ๊ก": 7,
+             "แดง": 8,      "ต้ม": 9,        "แตงโม": 10,    "น้ำพริกเผา": 11,
+             "บะหมี่": 12,    "เปรี้ยว": 13,    "ผัด": 14,       "ฝรั่ง": 15,
+             "พริกแกง": 16,  "มะม่วง": 17,    "ม้า": 18,       "มาม่า": 19,
+             "ลูกชิ้นปลา": 20, "เลือด": 21,     "สับ": 22,       "เส้นเล็ก": 23,
+             "เส้นใหญ่": 24,  "หมู": 25,       "หวาน": 26,     "องุ่น": 27,
              "แอปเปิ้ล": 28}
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
@@ -48,19 +27,17 @@ configFile.read(configFilePath)
 #Change preference in config.cfg
 policy = configFile['Options']['policy']
 batchSize = int(configFile['Options']['batchSize'])
-datasetType = configFile['Options']['datasetSize']
 
 keras.mixed_precision.set_global_policy(policy)
-ouputName = f"Matrix_model_{policy}_{datasetType}"
+ouputName = f"Matrix_model_{policy}"
 
 def preprocessData(dataset):
     label = dataset["Label"].values
-    #label = tf.convert_to_tensor(label, dtype=tf.int8) #Convert to tensor
 
     stringData = dataset.drop(["Label"], axis=1)
     columnNames = [f'{i}' for i in range(len(stringData.columns))]
     data = pd.DataFrame(columns=columnNames)
-    for row in stringData.values: #pandas decided to convert all matrix to string when save the dataset as xlsx
+    for row in stringData.values: #pandas decided to convert all matrix to string when save the dataset as csv
         rowData = [0] * len(stringData.columns)
         i = 0
         for matrix in row:
@@ -72,7 +49,6 @@ def preprocessData(dataset):
     #convert the 2D ndarray into 1D ndarray or converting [[x,y,z],[x,y,z],[x,y,z],...] to [x,y,z,x,y,z,x,y,z,...] with np.concatenate() function
     data = np.concatenate(data.to_numpy().flatten())
     data = data.reshape((-1, len(stringData.columns)*3, 1)) #sperate ndarray into multiple one corresponding to its label
-    #data = tf.convert_to_tensor(data, dtype=tf.float16) #Convert to tensor
     return data, label
 
 def splitData(data, label, ratio):
@@ -86,20 +62,17 @@ def splitData(data, label, ratio):
     return trainData, testData, trainLabel, testLabel
 
 #Preparing dataset
-dataset = pd.read_excel(parentDirectory.joinpath(f"{datasetType} dataset.xlsx"))
+dataset = pd.read_csv(parentDirectory.joinpath("Dataset.csv"))
 loadStart = time.perf_counter()
 data, label = preprocessData(dataset)
 trainData, testData, trainLabel, testLabel = splitData(data, label, 0.8)
 loadFinish = time.perf_counter()
 print(f"Dataset load time: {loadFinish - loadStart}")
 print(f"Total data in train dataset: {len(trainData)}, Total data in test dataset: {len(testData)} ")
-del dataset
 
 model = keras.models.Sequential([
-    layers.Flatten(input_shape=(201, 1)),
+    layers.Flatten(input_shape=(2010, 1)),
     layers.Dense(1024, activation=nn.leaky_relu),
-    layers.Dense(1024, activation=nn.relu),
-    #layers.Dropout(0.3),
     layers.Dense(512, activation=nn.relu),
     layers.Dropout(0.3),
     layers.Dense(len(labelList), activation=nn.softmax)
