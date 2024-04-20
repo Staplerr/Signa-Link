@@ -1,32 +1,59 @@
 import numpy as np
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, LSTM, Dense
+from TOKENIZER import Tokenizer, separate_word
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Embedding
 
-# Define input sequence length
-max_input_length = 10
 
-# Define output sequence length
-max_output_length = 10
+sentences = [
+    'ผมข้าวหมูกรอบกิน',
+    'ผมข้าวขาหมูกิน',
+    'ผมข้าวกิน',
+    'ข้าวผัดปูผมกิน',
+]
+ordered_sentences = [
+    'ผมกินข้าวหมูกรอบ',
+    'ผมกินข้าวขาหมู',
+    'ผมกินข้าว',
+    'ผมกินข้าวผัดปู',
+]
 
-# Define vocabulary size
-vocab_size = 10000
+# Tokenizing words
+tokenizer = Tokenizer()
+input_sequences = tokenizer.encode_list(sentences)
+output_sequences = tokenizer.encode_list(ordered_sentences)
 
-# Define model architecture
-encoder_inputs = Input(shape=(max_input_length,))
-encoder_lstm = LSTM(256, return_state=True)
-encoder_outputs, state_h, state_c = encoder_lstm(encoder_inputs)
-encoder_states = [state_h, state_c]
+# Padding sequences
+max_input_length = max(len(seq) for seq in input_sequences)
+max_output_length = max(len(seq) for seq in output_sequences)
 
-decoder_inputs = Input(shape=(max_output_length,))
-decoder_lstm = LSTM(256, return_sequences=True, return_state=True)
-decoder_outputs, _, _ = decoder_lstm(decoder_inputs, initial_state=encoder_states)
-decoder_dense = Dense(vocab_size, activation='softmax')
-decoder_outputs = decoder_dense(decoder_outputs)
+padded_input_sequences = tf.keras.preprocessing.sequence.pad_sequences(
+    input_sequences, maxlen=max_input_length, padding='post'
+)
+padded_output_sequences = tf.keras.preprocessing.sequence.pad_sequences(
+    output_sequences, maxlen=max_output_length, padding='post'
+)
 
-model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+# Prepare target sequences (shifted by one position)
+target_sequences = np.zeros_like(padded_output_sequences)
+target_sequences[:, :-1] = padded_output_sequences[:, 1:]
+
+# Model configuration
+vocab_size = tokenizer.n_vocab
+embedding_dim = 100
+
+# Define the model
+model = Sequential([
+    Embedding(vocab_size, embedding_dim, input_length=max_input_length),
+    LSTM(128),
+    Dense(vocab_size, activation='softmax')
+])
 
 # Compile the model
-model.compile(optimizer='adam', loss='categorical_crossentropy')
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
 
 # Train the model
-model.fit([encoder_input_data, decoder_input_data], decoder_target_data, batch_size=64, epochs=50, validation_split=0.2)
+model.fit(padded_input_sequences, target_sequences, epochs=100, verbose=2)
+
+result = model.predict('ข้าวผัดปูผมกิน')
+print(result)
