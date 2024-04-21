@@ -31,16 +31,17 @@ class Tokenizer():
 
     def encode(self, target : str) -> list:
         token = []
+        result = separate_word(target)
         try:
-            result = separate_word(target)
             for i in result:
                 token.append(self.vocab[i])
-            return token
         except KeyError as e:
             self.add_word(e.args[0])
-            for i in result:
+            index = result.index(e.args[0])
+            for i in result[index:]:
                 token.append(self.vocab[i])
-            return token
+                print()
+        return token
 
     def decode(self, target : list) -> str:
         word = []
@@ -49,8 +50,6 @@ class Tokenizer():
                 word.append(self.vocab[i])
             except KeyError as e:
                 self.add_word(e.args[0])
-                for i in target:
-                    word.append(self.vocab[i])
                 
         return ''.join(word)
 

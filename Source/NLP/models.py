@@ -10,20 +10,25 @@ sentences = [
     'ผมข้าวขาหมูกิน',
     'ผมข้าวกิน',
     'ข้าวผัดปูผมกิน',
+    'ข้าวข้าวผมข้าวผัดปูผมกินกินผม',
 ]
 ordered_sentences = [
     'ผมกินข้าวหมูกรอบ',
     'ผมกินข้าวขาหมู',
     'ผมกินข้าว',
     'ผมกินข้าวผัดปู',
+    'ผมกินข้าวผัดปู'
 ]
 
 # Tokenizing words
 tokenizer = Tokenizer()
 input_sequences = tokenizer.encode_list(sentences)
-output_sequences = tokenizer.encode_list(ordered_sentences)
+print(input_sequences)
+decoded = tokenizer.decode_list(input_sequences)
+print(decoded)
+#output_sequences = tokenizer.encode_list(ordered_sentences)
 
-# Padding sequences
+'''# Padding sequences
 max_input_length = max(len(seq) for seq in input_sequences)
 max_output_length = max(len(seq) for seq in output_sequences)
 
@@ -56,4 +61,4 @@ model.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
 model.fit(padded_input_sequences, target_sequences, epochs=100, verbose=2)
 
 result = model.predict('ข้าวผัดปูผมกิน')
-print(result)
+print(result)'''
