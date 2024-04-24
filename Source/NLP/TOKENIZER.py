@@ -84,7 +84,7 @@ class Tokenizer():
                 decoded.append(self.decode(i))
         return decoded
 
-    def encode_array(self, lst : list) -> array:
+    def encode_toarray(self, lst : list) -> array:
         encoded = []
         for i in lst:
             try:
@@ -95,7 +95,7 @@ class Tokenizer():
                 encoded.append(self.encode(i))
         return np.array(encoded)
 
-    def decode_array(self, lst : list) -> array:
+    def decode_toarray(self, lst : list) -> array:
         decoded = []
         for i in lst:
             try:
