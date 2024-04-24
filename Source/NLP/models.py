@@ -22,8 +22,8 @@ ordered_sentences = [
 
 # Tokenizing words
 tokenizer = Tokenizer()
-input_sequences = tokenizer.encode_list(sentences)
-output_sequences = tokenizer.encode_list(ordered_sentences)
+input_sequences = tokenizer.encode_toarray(sentences)
+output_sequences = tokenizer.encode_toarray(ordered_sentences)
 
 # Don't uncomment. It broke everything.
 '''# Model configuration
