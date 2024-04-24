@@ -1,4 +1,5 @@
 import spacy_thai
+import numpy as np
 from thai_tokenizer import Tokenizer
 
 nlp = spacy_thai.load()
@@ -82,3 +83,25 @@ class Tokenizer():
                 print(f'Error raised the word {e.args[0]} is not in the dict.')
                 decoded.append(self.decode(i))
         return decoded
+
+    def encode_array(self, lst : list) -> array:
+        encoded = []
+        for i in lst:
+            try:
+                encoded.append(self.encode(i))
+            except KeyError as e:
+                self.add_word(e.args[0])
+                print(f'Error raised the word {e.args[0]} is not in the dict.')
+                encoded.append(self.encode(i))
+        return np.array(encoded)
+
+    def decode_array(self, lst : list) -> array:
+        decoded = []
+        for i in lst:
+            try:
+                decoded.append(self.decode(i))
+            except KeyError as e:
+                self.add_word(e.args[0])
+                print(f'Error raised the word {e.args[0]} is not in the dict.')
+                decoded.append(self.decode(i))
+        return np.array(decoded)
