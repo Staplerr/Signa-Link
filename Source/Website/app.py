@@ -78,37 +78,6 @@ def initiateMediapipeModel():
     HandLandmarker = HandLandmarker.create_from_options(handOption)
     return poseLandmarker, HandLandmarker
 poseLandmarker, handLandmarker = initiateMediapipeModel()
-
-'''def addLandMark(coordinates, index, matrix, i): #add landmark to list
-    for landmark in coordinates[index]:
-        matrix[i] = [landmark.x, landmark.y, landmark.z]
-        i += 1
-    return matrix, i
-def pictureToMatrix(imagePATH):
-    image = mp.Image.create_from_file(str(imagePATH))
-    poseResult = poseLandmarker.detect(image)
-    handResult = HandLandmarker.detect(image)
-    poseCoordinates = poseResult.pose_landmarks
-    handCoordinates = handResult.hand_landmarks
-    if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
-        matrix = [[0, 0, 0]] * 67
-        i = 0
-        #add session["landmarks"] to list
-        for landmark in poseCoordinates[0][:25]:
-            matrix[i] = [landmark.x, landmark.y, landmark.z]
-            i += 1
-        if len(handCoordinates) > 1:
-            matrix, i = addLandMark(handCoordinates, 0, matrix, i)
-            matrix, i = addLandMark(handCoordinates, 1, matrix, i)
-        else:
-            if handResult.handedness[0][0].category_name == "Left":
-                i += 21
-                matrix, i = addLandMark(handCoordinates, 0, matrix, i)
-            else:
-                matrix, i = addLandMark(handCoordinates, 0, matrix, i)
-        return matrix
-    else:
-        return None'''
     
 
 def addLandmarks(coordinates, array):
@@ -120,7 +89,6 @@ def addLandmarks(coordinates, array):
         for filler in coordinates:
             array = np.vstack([array, filler])
     return array #Return 2D np array
-
 
 def generateFrameLandmarks(frame):
     frame = mp.Image.create_from_file(frame)
@@ -155,7 +123,6 @@ def generateFrameLandmarks(frame):
 
     coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
     return coordinatesArray #return 2D np array
-
 
 @app.route('/predictImage', methods=['POST'])
 def predictImage():
@@ -195,39 +162,31 @@ def predictImage():
             #Add data to dictionary
             dataDict["inferenceTime"] = time.perf_counter() - startTime
             dataDict["label"] = labelList[np.argmax(prediction)]
-            dataDict["confidence"] = max(prediction[0]) * 100
+            dataDict["confidence"] = prediction[0][np.argmax(prediction[0])] * 100
             app.logger.info(f"Returned: {dataDict}")
 
     try:
         os.remove(str(tempDirectory.joinpath(f"frame_{currentFrame - 5}.png")))
     except: pass
 
-    #print(f"Result: {landmarkResult}")
-    #sessionLandmark = session["landmarks"]
-    #print(f"Session: {sessionLandmark}")
     session["currentFrame"] += 1
     return jsonify(dataDict) #Convert dictionary to json
 
 
 @app.route('/')
-def setupVariable():
+def homePage():
     session["landmarks"] = np.empty([frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2), 3], dtype=np.float16)
     session["currentFrame"] = 0
-    return render_template('index.html')
+    return render_template('home.html')
 
 
-@app.route('/APIpostTest', methods=['POST'])
-def APIpostTest():
-    data = request.json
-    app.logger.info(f"receive POST request with data: {data}")
-    return jsonify(data)
+@app.route('/about')
+def infoPage():
+    return render_template('about.html')
 
-@app.route('/APIgetTest', methods=['GET'])
-def APIgetTest():
-    data = {"data" : "hi",
-            "data2" : "hello"}
-    app.logger.info(f"receive GET request, returned data: {data}")
-    return jsonify(data)
+@app.route('/dataset')
+def datasetPage():
+    return render_template('dataset.html')
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()

@@ -1,0 +1,232 @@
+.screenshot-image {
+    width: 150px;
+    height: 90px;
+    border-radius: 4px;
+    border: 2px solid whitesmoke;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+    position: absolute;
+    bottom: 5px;
+    left: 10px;
+    background: white;
+}
+
+.display-cover {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    margin: 0%;
+    position: absolute;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    background: rgb(3, 3, 3);
+    position: absolute;
+}
+
+
+.output {
+    position: absolute;
+    left: 10%;
+    bottom: 15%;
+    text-align: left;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-shadow: -1px -1px 0 #050018, 1px -1px 0 #050018, -1px 1px 0 #050018, 1px 1px 0 #050018;
+    color: azure;
+}
+.label-output {
+    font-size: xx-large;
+    font-weight: bolder;
+}
+
+.confidence-output {
+    font-size: small;
+}
+
+.inference-time-output {
+    font-size: small;
+}
+
+
+.bottom-bar {
+    position: absolute;
+    background-color: rgba(250, 250, 250, 0.959);
+    width: 100%;
+    height: 125px;
+    left: 0%;
+    top: 100%;
+}
+
+.bottom-bar a {
+    position: absolute;
+    top: 40%;
+    text-decoration: none;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 20px;
+    color: rgb(95, 95, 95);
+    transition: 0.1s;
+    outline: none;
+}
+.bottom-bar a:hover {
+    color: black;
+}
+.bottom-bar a:focus {
+    outline: none;
+}
+
+.app-link {
+    left: 35%;
+}
+
+.about-link {
+    left: 44%;
+}
+
+.github-link {
+    left: 54%;
+}
+
+.dataset-link {
+    left: 62%;
+}
+
+.setting-button {
+    position: absolute;
+    top: 40%;
+    left: 10%;
+    text-decoration: none;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 20px;
+    color: rgb(95, 95, 95);
+    background-color: rgba(250, 250, 250, 0.959);
+    transition: 0.1s;
+    border: none;
+    outline: none;
+}
+.setting-button:hover {
+    color: black;
+}
+.setting-button:focus {
+    outline: none;
+}
+
+
+.setting-box {
+    position: fixed;
+    height: 60%;
+    width: 40%;
+    top: 20%;
+    left: 30%;
+    border-radius: 5px;
+    background-color: rgb(250, 250, 250);
+    z-index: 1;
+    display: none;
+}
+
+.setting-box p {
+    position: absolute;
+    top: 20px;
+    left: 30px;
+    text-decoration: none;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 30px;
+    color: black;
+    transition: 0.1s;
+}
+
+.close-setting {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    height: 50px;
+    width: 50px;
+    border-radius: 25px;
+    align-items: center;
+    background-color: rgb(250, 250, 250);
+    transition: 0.1s;
+    border: none;
+    outline: none;
+}
+.close-setting:hover {
+    background-color: rgb(220, 220, 220);
+}
+.close-setting:focus {
+    outline: none;
+}
+
+.video-options {
+    position: absolute;
+    left: 20%;
+    top: 20%;
+}
+
+.controls {
+    position: absolute;
+    right: 40%;
+    top: 20%;
+    display: flex;
+}
+
+
+
+
+
+.controls > button {
+    width: 45px;
+    height: 45px;
+    text-align: center;
+    border-radius: 100%;
+    margin: 0 6px;
+    background: transparent;
+}
+.controls > button:hover svg {
+    color: white !important;
+}
+@media (min-width: 300px) and (max-width: 400px) {
+    .controls {
+        flex-direction: column;
+    }
+
+    .controls button {
+        margin: 5px 0 !important;
+    }
+}
+.controls > button > svg {
+    height: 20px;
+    width: 18px;
+    text-align: center;
+    margin: 0 auto;
+    padding: 0;
+}
+.controls button:nth-child(1) {
+    border: 2px solid #D2002E;
+}
+.controls button:nth-child(1) svg {
+    color: #D2002E;
+}
+.controls button:nth-child(2) {
+    border: 2px solid #008496;
+}
+.controls button:nth-child(2) svg {
+    color: #008496;
+}
+.controls button:nth-child(3) {
+    border: 2px solid #00B541;
+}
+.controls button:nth-child(3) svg {
+    color: #00B541;
+}
+.controls > button {
+    width: 45px;
+    height: 45px;
+    text-align: center;
+    border-radius: 100%;
+    margin: 0 6px;
+    background: transparent;
+}
+.controls > button:hover svg {
+    color: white;
+}

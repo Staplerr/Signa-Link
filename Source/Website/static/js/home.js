@@ -2,17 +2,18 @@ feather.replace();
 
 const minConfidence = 0.5;
 const fps = 24;
-const resizeRatio = 10;
+const resizeRatio = 5;
 
 const labelOutput = document.getElementById("label-output");
 const confidenceOutput = document.getElementById("confidence-output");
 const inferenceTimeOutput = document.getElementById("inference-time-output");
 
+const optionDiv = document.getElementById("setting-box");
+
 const controls = document.querySelector('.controls');
 const cameraOptions = document.querySelector('.video-options>select');
 const video = document.querySelector('video');
 const canvas = document.querySelector('canvas');
-const screenshotImage = document.querySelector('img');
 const buttons = [...controls.querySelectorAll('button')];
 let streamStarted = false;
 const [play, pause, screenshot] = buttons;
@@ -31,6 +32,18 @@ const constraints = {
     },
   }
 };
+
+
+function showSetting() {
+  console.log("executed");
+  optionDiv.style.display = "block";
+};
+
+function closeSetting() {
+  console.log("executed");
+  optionDiv.style.display = "none";
+};
+
 
 async function captureImage(stream){
   //Get track from stream then get frame from track
@@ -59,31 +72,6 @@ async function callPredictImage(stream) {
   return response.json();
 };
 
-async function APIgetTest() {
-  const response = await fetch('http://127.0.0.1:5000/APIgetTest', {
-    method: 'GET',
-    headers: {
-        'Content-Type': 'application/json'
-    }
-  });
-  return response.json();
-};
-
-async function APIpostTest(inputData) {
-  const response = await fetch('http://127.0.0.1:5000/APIpostTest', {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(inputData)
-  });
-  return response.json();
-};
-
-function setup() {
-  fetch('http://127.0.0.1:5000/');
-};
-
 const getCameraSelection = async () => {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -109,13 +97,6 @@ play.onclick = () => {
     };
     startStream(updatedConstraints);
   }
-
-  //APIgetTest().then((result) => {
-  //  console.log(result);
-  //});
-  //APIpostTest({"lel" : "sheet"}).then((result) => {
-  //  console.log(result);
-  //});
 };
 
 const startStream = async (constraints) => {
@@ -135,7 +116,7 @@ const handleStream = (stream) => {
   function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
       if (result["label"] != null) {
-        if (result["confidence"] > 90) {
+        if (result["confidence"] > 0) {
           console.log(result);
           //const node = document.createTextNode(result["label"])
           labelOutput.innerHTML = "Output: " + result["label"];
