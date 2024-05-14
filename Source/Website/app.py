@@ -6,11 +6,13 @@ import mediapipe as mp
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components.containers import landmark as mpLandmark
 import time
+from datetime import datetime
 from flask import Flask, request, jsonify, session, render_template
 from flask_session import Session
 import logging
 from binascii import a2b_base64
 import os
+import sys
 
 app = Flask(__name__)
 #CORS(app)
@@ -24,6 +26,10 @@ parentDirectory = Path(__file__).parent
 tempDirectory = parentDirectory.joinpath("temp")
 if not tempDirectory.exists():
     tempDirectory.mkdir(parents=True)
+logDirectory = parentDirectory.joinpath("logs")
+if not logDirectory.exists():
+    logDirectory.mkdir(parents=True)
+logFile = logDirectory.joinpath("log.txt")
 
 #frames config
 sample = 5 #Save frame every n frame
@@ -154,8 +160,9 @@ def predictImage():
         if type(landmarkResult) == np.ndarray:
             session["landmarks"] = np.vstack([landmarkResult, session["landmarks"]], dtype=np.float16)
             session["landmarks"] = session["landmarks"][:-(len(poseColumnNameList) + len(handColumnNameList) * 2)]
+            landmarks = session["landmarks"]
 
-            processedLandmark = session["landmarks"].reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2), 1))
+            processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2), 1))
 
             prediction = matrixModel.predict(processedLandmark, verbose=3)
 
@@ -163,7 +170,11 @@ def predictImage():
             dataDict["inferenceTime"] = time.perf_counter() - startTime
             dataDict["label"] = labelList[np.argmax(prediction)]
             dataDict["confidence"] = prediction[0][np.argmax(prediction[0])] * 100
+            
             app.logger.info(f"Returned: {dataDict}")
+            log = open(str(logFile), "a")
+            log.write(f"Time: {datetime.now()} Returned: {dataDict} Landmarks: {landmarks}\n\n")
+            log.close()
 
     try:
         os.remove(str(tempDirectory.joinpath(f"frame_{currentFrame - 5}.png")))
@@ -189,4 +200,5 @@ def datasetPage():
     return render_template('dataset.html')
 
 if __name__ == "__main__":
+    np.set_printoptions(threshold=sys.maxsize)
     app.run()

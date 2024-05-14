@@ -2,7 +2,7 @@ feather.replace();
 
 const minConfidence = 0.5;
 const fps = 24;
-const resizeRatio = 5;
+const resizeRatio = 10;
 
 const labelOutput = document.getElementById("label-output");
 const confidenceOutput = document.getElementById("confidence-output");
@@ -115,8 +115,8 @@ const handleStream = (stream) => {
   //Set up function so it could be use with interval
   function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
-      if (result["label"] != null) {
-        if (result["confidence"] > 0) {
+      if (result != null) {
+        if (result["confidence"] > minConfidence * 100) {
           console.log(result);
           //const node = document.createTextNode(result["label"])
           labelOutput.innerHTML = "Output: " + result["label"];
