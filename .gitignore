@@ -3,4 +3,7 @@ Source/Matrix converter/Images
 Source/Matrix converter/Temp
 Source/AI/Test image
 Source/AI/config.cfg
-Source/Website/Image
+Source/Website/temp
+Source/Website/logs
+Source/Website/flask_session
+flask_session
