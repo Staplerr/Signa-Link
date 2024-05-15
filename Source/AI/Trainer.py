@@ -5,7 +5,6 @@ from tensorflow import nn
 import pandas as pd
 from pathlib import Path
 import numpy as np
-import ast
 import time
 import configparser
 
@@ -33,27 +32,11 @@ ouputName = f"Matrix_model_{policy}"
 
 def preprocessData(dataset):
     label = dataset["Label"].values
-
-    stringData = dataset.drop(["Label"], axis=1)
-    columnNames = [f'{i}' for i in range(len(stringData.columns))]
-    data = pd.DataFrame(columns=columnNames)
-    for row in stringData.values: #pandas decided to convert all matrix to string when save the dataset as csv
-        rowData = [0] * len(stringData.columns)
-        i = 0
-        for matrix in row:
-            rowData[i] = ast.literal_eval(matrix) #turn string into matrix
-            i += 1
-        data.loc[len(data)] = rowData
-    #convert dataframe to ndarray
-    #convert the 3D ndarray into 2D ndarray or converting [[[x,y,z],[x,y,z],...],[[x,y,z],[x,y,z],...],...] to [[x,y,z],[x,y,z],[x,y,z],...] with .flatten() function
-    #convert the 2D ndarray into 1D ndarray or converting [[x,y,z],[x,y,z],[x,y,z],...] to [x,y,z,x,y,z,x,y,z,...] with np.concatenate() function
-    data = np.concatenate(data.to_numpy().flatten())
-    data = data.reshape((-1, len(stringData.columns)*3, 1)) #sperate ndarray into multiple one corresponding to its label
+    data = dataset.drop(["Label"], axis=1)
+    data = data.to_numpy().reshape((-1, len(data.columns))) #sperate ndarray into multiple one corresponding to its label
     return data, label
 
 def splitData(data, label, ratio):
-    #trainData, testData = np.split(data, int(ratio * len(data)))
-    #trainLabel, testLabel = np.split(label, int(ratio * len(label)))
     trainData = data[0:int(ratio * len(data))]
     testData = data[int(ratio * len(data)):-1]
 
