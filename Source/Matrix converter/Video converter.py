@@ -18,7 +18,7 @@ if not tempDirectory.exists():
 outputFile = parentDirectory.joinpath("Output.csv")
 
 #Opencv config
-sample = 5 #Save frame every n frame
+baseSample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
 resizeRation = 10
 resizeInterpolation = cv2.INTER_AREA
@@ -46,11 +46,14 @@ columnNames = ["Label"]
 
 for i in range(frameBuffer):
     for columnName in poseColumnNameList:
-        columnNames.append(f"{columnName}_{i}")
+        for axis in ["X", "Y", "Z"]:
+            columnNames.append(f"{columnName}_{axis}_{i}")
     for columnName in handColumnNameList:
-        columnNames.append(f"right_{columnName}_{i}")
+        for axis in ["X", "Y", "Z"]:
+            columnNames.append(f"right_{columnName}_{axis}_{i}")
     for columnName in handColumnNameList:
-        columnNames.append(f"left_{columnName}_{i}")
+        for axis in ["X", "Y", "Z"]:
+            columnNames.append(f"left_{columnName}_{axis}_{i}")
 df = pd.DataFrame(columns=columnNames)
 
 labelList = {"กรอบ": 0,     "กระเพรา": 1,    "ขา": 2,       "ข้าว": 3,
@@ -91,7 +94,7 @@ def getFilePATHS(directory):
     return videoPATHs
 
 
-def addLandmarks(coordinates, array):
+def addLandmarks(coordinates, array): #Function for adding new landmarks to array
     if type(coordinates[0]) == mpLandmark.Landmark:
         for landmark in coordinates:
             value = np.array([landmark.x, landmark.y, landmark.z], dtype=np.float16)
@@ -102,7 +105,7 @@ def addLandmarks(coordinates, array):
     return array #Return 2D np array
 
 
-def generateFrameLandmarks(frame):
+def generateFrameLandmarks(frame): #Function for generating landmarks for single frame
     frame = mp.Image.create_from_file(frame)
 
     poseResult = poseLandmarker.detect(image=frame)
@@ -137,7 +140,7 @@ def generateFrameLandmarks(frame):
     return coordinatesArray #return 2D np array
 
 
-def removeExcessLandmarks(startArray): #This definitely will break if length of input array is lower than sample * frameBuffer
+def removeExcessLandmarks(startArray, sample): #This definitely will break if length of input array is lower than sample * frameBuffer
     array = []
     middlePosition = int(np.ceil(len(startArray) / 2)) - 1 #Middle position of input array, median?
     array.append(startArray[middlePosition])
@@ -165,10 +168,14 @@ def removeExcessLandmarks(startArray): #This definitely will break if length of 
     return np.array(array, dtype=np.float16)
 
 
-def videoToLandmarks(videoPATH):
+def videoToLandmarks(videoPATH, sample):
     landmarks = []
     cap = cv2.VideoCapture(str(videoPATH))
     currentFrame = 0
+    totalFrame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    while totalFrame < frameBuffer * sample and sample != 1:
+        sample -= 1
+    print(f"Video: {videoPATH.name} Total frame: {totalFrame} Sample: {sample}")
 
     #capture all frame the video has
     while cap.isOpened:
@@ -190,7 +197,7 @@ def videoToLandmarks(videoPATH):
             break
     cap.release()
     
-    landmarks = removeExcessLandmarks(landmarks)
+    landmarks = removeExcessLandmarks(landmarks, sample)
     return landmarks #Return "3D" np array
 
 
@@ -201,8 +208,8 @@ totalFile = len(videoPaths)
 for index, video in enumerate(videoPaths):
     label = labelList[video.parent.name]
 
-    landmarks = videoToLandmarks(video)
-    landmarks = landmarks.reshape((-1, 3))
+    landmarks = videoToLandmarks(video, baseSample)
+    landmarks = landmarks.reshape((-1))
     landmarks = landmarks.tolist()
     landmarks.insert(0, label)
 
