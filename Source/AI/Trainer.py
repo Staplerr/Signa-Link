@@ -54,10 +54,15 @@ print(f"Dataset load time: {loadFinish - loadStart}")
 print(f"Total data in train dataset: {len(trainData)}, Total data in test dataset: {len(testData)} ")
 
 model = keras.models.Sequential([
-    layers.Flatten(input_shape=(2010, 1)),
-    layers.Dense(1024, activation=nn.leaky_relu),
+    layers.InputLayer(2010),
+    layers.Dense(1024, activation=nn.relu),
+    layers.Dropout(0.5),
     layers.Dense(512, activation=nn.relu),
-    layers.Dropout(0.3),
+    layers.Dropout(0.5),
+    layers.Dense(256, activation=nn.relu),
+    layers.Dropout(0.5),
+    layers.Dense(128, activation=nn.relu),
+    layers.Dropout(0.5),
     layers.Dense(len(labelList), activation=nn.softmax)
 ])
 model.compile(optimizer=keras.optimizers.Adam(),

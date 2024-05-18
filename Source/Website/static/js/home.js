@@ -1,7 +1,7 @@
 feather.replace();
 
 const minConfidence = 0.5;
-const fps = 24;
+const fps = 30;
 const resizeRatio = 10;
 
 const labelOutput = document.getElementById("label-output");
@@ -21,26 +21,24 @@ const [play, pause, screenshot] = buttons;
 const constraints = {
   video: {
     width: {
-      min: 1280,
-      ideal: 1920,
-      max: 2560,
+      min: 720,
+      ideal: 720,
+      max: 1080,
     },
     height: {
-      min: 720,
-      ideal: 1080,
-      max: 1440
+      min: 1280,
+      ideal: 1280,
+      max: 1920
     },
   }
 };
 
 
 function showSetting() {
-  console.log("executed");
   optionDiv.style.display = "block";
 };
 
 function closeSetting() {
-  console.log("executed");
   optionDiv.style.display = "none";
 };
 
@@ -54,8 +52,8 @@ async function captureImage(stream){
   //Add frame to canvas so it could be convert to data URL later
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  canvas.width = 1920 / resizeRatio; //Resize image to decrease load on the server
-  canvas.height = 1080 / resizeRatio;
+  canvas.width = constraints.video.width.ideal / resizeRatio; //Resize image to decrease load on the server
+  canvas.height = constraints.video.height.ideal / resizeRatio;
   context.drawImage(photoBlob, 0, 0, canvas.width, canvas.height);
 
   const dataUrl = canvas.toDataURL(); // Convert to data URL

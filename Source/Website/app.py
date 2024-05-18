@@ -34,6 +34,7 @@ logFile = logDirectory.joinpath("log.txt")
 #frames config
 sample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
+retryChance = 2
 
 #Matrix model stuff
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
@@ -97,14 +98,17 @@ def addLandmarks(coordinates, array):
     return array #Return 2D np array
 
 def generateFrameLandmarks(frame):
-    frame = mp.Image.create_from_file(frame)
+    try:
+        frame = mp.Image.create_from_file(frame)
+    except: #Occur when saving image gone wrong, don't know how but it did.
+        return None
 
     poseResult = poseLandmarker.detect(image=frame)
     poseCoordinates = poseResult.pose_world_landmarks
     if len(poseCoordinates) == 0:
         return None
     handResult = handLandmarker.detect(image=frame)
-    handedness = handResult.handedness 
+    handedness = handResult.handedness
     handCoordinates = handResult.hand_world_landmarks
 
     coordinatesArray = np.empty((3, ), dtype=np.float16)
@@ -128,6 +132,7 @@ def generateFrameLandmarks(frame):
                 coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
 
     coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
+    coordinatesArray = np.nan_to_num(coordinatesArray) #Replace nan with 0
     return coordinatesArray #return 2D np array
 
 @app.route('/predictImage', methods=['POST'])
@@ -145,24 +150,25 @@ def predictImage():
                 "confidence" : None,
                 "inferenceTime" : None}
 
-    landmarkResult = None
     if currentFrame / sample - currentFrame // sample == 0:
         startTime = time.perf_counter()
         imagePATH = tempDirectory.joinpath(f"frame_{currentFrame}.png")
         landmarkResult = generateFrameLandmarks(str(imagePATH))
 
-        if type(landmarkResult) != np.ndarray: #Give it another chance
-            imagePATH = tempDirectory.joinpath(f"frame_{currentFrame - 1}.png")
-            try:
-                landmarkResult = generateFrameLandmarks(str(imagePATH))
-            except: pass
+        if type(landmarkResult) != np.ndarray: #Give it another chance when did not detect body
+            for i in range(retryChance):
+                imagePATH = tempDirectory.joinpath(f"frame_{currentFrame - i}.png")
+                try:
+                    landmarkResult = generateFrameLandmarks(str(imagePATH))
+                    if type(landmarkResult) == np.ndarray: break
+                except: pass
 
         if type(landmarkResult) == np.ndarray:
             session["landmarks"] = np.vstack([landmarkResult, session["landmarks"]], dtype=np.float16)
             session["landmarks"] = session["landmarks"][:-(len(poseColumnNameList) + len(handColumnNameList) * 2)]
             landmarks = session["landmarks"]
 
-            processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2), 1))
+            processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2)))
 
             prediction = matrixModel.predict(processedLandmark, verbose=3)
 
