@@ -1,0 +1,72 @@
+<!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport"
+              content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+        <link rel="stylesheet" href="static/css/home.css">
+        <title>Signa Link</title>
+    </head>
+    <body> 
+        <div class="display-cover">
+            <video autoplay></video>
+            <canvas class="d-none"></canvas>
+
+            <div class="output">
+                <p class="label-output" id="label-output">
+                    Output: -
+                </p>
+                <p class="confidence-output" id="confidence-output">
+                    Confidence: 0%
+                </p>
+                <p class="inference-time-output" id="inference-time-output">
+                    Inference time: 0s
+                </p>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            <button class="setting-button" onclick="showSetting()">
+                Setting
+            </button>
+
+            <a href="/" class="app-link">
+                App
+            </a>
+            <a href="/about" class="about-link">
+                About us
+            </a>
+            <a href="https://github.com/Staplerr/Signa-Link" class="github-link">
+                GitHub
+            </a>
+            <a href="/dataset" class="dataset-link">
+                Dataset contribution
+            </a>
+        </div>
+        <div class="setting-box" id="setting-box">
+            <p>
+                Settings
+            </p>
+            <button class="close-setting" onclick="closeSetting()">
+                <svg focusable="false" width="24" height="24" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"></path>
+                </svg>
+            </button>
+
+            <div class="video-options">
+                <select name="" id="" class="custom-select">
+                    <option value="">Select camera</option>
+                </select>
+            </div>
+            <div class="controls">
+                <button class="btn btn-danger play" title="Play"><i data-feather="play-circle"></i></button>
+                <button class="btn btn-info pause d-none" title="Pause"><i data-feather="pause"></i></button>
+                <button class="btn btn-outline-success screenshot d-none" title="ScreenShot"><i data-feather="image"></i></button>
+            </div>
+        </div>
+
+        <script src="https://unpkg.com/feather-icons"></script>
+        <script src="static/js/home.js"></script>
+    </body>
+</html>

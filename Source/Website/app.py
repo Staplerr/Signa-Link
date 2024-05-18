@@ -6,11 +6,13 @@ import mediapipe as mp
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components.containers import landmark as mpLandmark
 import time
+from datetime import datetime
 from flask import Flask, request, jsonify, session, render_template
 from flask_session import Session
 import logging
 from binascii import a2b_base64
 import os
+import sys
 
 app = Flask(__name__)
 #CORS(app)
@@ -24,10 +26,15 @@ parentDirectory = Path(__file__).parent
 tempDirectory = parentDirectory.joinpath("temp")
 if not tempDirectory.exists():
     tempDirectory.mkdir(parents=True)
+logDirectory = parentDirectory.joinpath("logs")
+if not logDirectory.exists():
+    logDirectory.mkdir(parents=True)
+logFile = logDirectory.joinpath("log.txt")
 
 #frames config
 sample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
+retryChance = 2
 
 #Matrix model stuff
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
@@ -78,37 +85,6 @@ def initiateMediapipeModel():
     HandLandmarker = HandLandmarker.create_from_options(handOption)
     return poseLandmarker, HandLandmarker
 poseLandmarker, handLandmarker = initiateMediapipeModel()
-
-'''def addLandMark(coordinates, index, matrix, i): #add landmark to list
-    for landmark in coordinates[index]:
-        matrix[i] = [landmark.x, landmark.y, landmark.z]
-        i += 1
-    return matrix, i
-def pictureToMatrix(imagePATH):
-    image = mp.Image.create_from_file(str(imagePATH))
-    poseResult = poseLandmarker.detect(image)
-    handResult = HandLandmarker.detect(image)
-    poseCoordinates = poseResult.pose_landmarks
-    handCoordinates = handResult.hand_landmarks
-    if len(poseCoordinates) > 0 and len(handCoordinates) > 0: #check if the pose and hand could be detect in the first place
-        matrix = [[0, 0, 0]] * 67
-        i = 0
-        #add session["landmarks"] to list
-        for landmark in poseCoordinates[0][:25]:
-            matrix[i] = [landmark.x, landmark.y, landmark.z]
-            i += 1
-        if len(handCoordinates) > 1:
-            matrix, i = addLandMark(handCoordinates, 0, matrix, i)
-            matrix, i = addLandMark(handCoordinates, 1, matrix, i)
-        else:
-            if handResult.handedness[0][0].category_name == "Left":
-                i += 21
-                matrix, i = addLandMark(handCoordinates, 0, matrix, i)
-            else:
-                matrix, i = addLandMark(handCoordinates, 0, matrix, i)
-        return matrix
-    else:
-        return None'''
     
 
 def addLandmarks(coordinates, array):
@@ -121,16 +97,18 @@ def addLandmarks(coordinates, array):
             array = np.vstack([array, filler])
     return array #Return 2D np array
 
-
 def generateFrameLandmarks(frame):
-    frame = mp.Image.create_from_file(frame)
+    try:
+        frame = mp.Image.create_from_file(frame)
+    except: #Occur when saving image gone wrong, don't know how but it did.
+        return None
 
     poseResult = poseLandmarker.detect(image=frame)
     poseCoordinates = poseResult.pose_world_landmarks
     if len(poseCoordinates) == 0:
         return None
     handResult = handLandmarker.detect(image=frame)
-    handedness = handResult.handedness 
+    handedness = handResult.handedness
     handCoordinates = handResult.hand_world_landmarks
 
     coordinatesArray = np.empty((3, ), dtype=np.float16)
@@ -154,8 +132,8 @@ def generateFrameLandmarks(frame):
                 coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
 
     coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
+    coordinatesArray = np.nan_to_num(coordinatesArray) #Replace nan with 0
     return coordinatesArray #return 2D np array
-
 
 @app.route('/predictImage', methods=['POST'])
 def predictImage():
@@ -172,62 +150,61 @@ def predictImage():
                 "confidence" : None,
                 "inferenceTime" : None}
 
-    landmarkResult = None
     if currentFrame / sample - currentFrame // sample == 0:
         startTime = time.perf_counter()
         imagePATH = tempDirectory.joinpath(f"frame_{currentFrame}.png")
         landmarkResult = generateFrameLandmarks(str(imagePATH))
 
-        if type(landmarkResult) != np.ndarray: #Give it another chance
-            imagePATH = tempDirectory.joinpath(f"frame_{currentFrame - 1}.png")
-            try:
-                landmarkResult = generateFrameLandmarks(str(imagePATH))
-            except: pass
+        if type(landmarkResult) != np.ndarray: #Give it another chance when did not detect body
+            for i in range(retryChance):
+                imagePATH = tempDirectory.joinpath(f"frame_{currentFrame - i}.png")
+                try:
+                    landmarkResult = generateFrameLandmarks(str(imagePATH))
+                    if type(landmarkResult) == np.ndarray: break
+                except: pass
 
         if type(landmarkResult) == np.ndarray:
             session["landmarks"] = np.vstack([landmarkResult, session["landmarks"]], dtype=np.float16)
             session["landmarks"] = session["landmarks"][:-(len(poseColumnNameList) + len(handColumnNameList) * 2)]
+            landmarks = session["landmarks"]
 
-            processedLandmark = session["landmarks"].reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2), 1))
+            processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2)))
 
             prediction = matrixModel.predict(processedLandmark, verbose=3)
 
             #Add data to dictionary
             dataDict["inferenceTime"] = time.perf_counter() - startTime
             dataDict["label"] = labelList[np.argmax(prediction)]
-            dataDict["confidence"] = max(prediction[0]) * 100
+            dataDict["confidence"] = prediction[0][np.argmax(prediction[0])] * 100
+            
             app.logger.info(f"Returned: {dataDict}")
+            log = open(str(logFile), "a")
+            log.write(f"Time: {datetime.now()} Returned: {dataDict} Landmarks: {landmarks}\n\n")
+            log.close()
 
     try:
         os.remove(str(tempDirectory.joinpath(f"frame_{currentFrame - 5}.png")))
     except: pass
 
-    #print(f"Result: {landmarkResult}")
-    #sessionLandmark = session["landmarks"]
-    #print(f"Session: {sessionLandmark}")
     session["currentFrame"] += 1
     return jsonify(dataDict) #Convert dictionary to json
 
 
 @app.route('/')
-def setupVariable():
+def homePage():
     session["landmarks"] = np.empty([frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2), 3], dtype=np.float16)
     session["currentFrame"] = 0
-    return render_template('index.html')
+    return render_template('home.html')
 
 
-@app.route('/APIpostTest', methods=['POST'])
-def APIpostTest():
-    data = request.json
-    app.logger.info(f"receive POST request with data: {data}")
-    return jsonify(data)
+@app.route('/about')
+def infoPage():
+    return render_template('about.html')
 
-@app.route('/APIgetTest', methods=['GET'])
-def APIgetTest():
-    data = {"data" : "hi",
-            "data2" : "hello"}
-    app.logger.info(f"receive GET request, returned data: {data}")
-    return jsonify(data)
+@app.route('/dataset')
+def datasetPage():
+    return render_template('dataset.html')
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    np.set_printoptions(threshold=sys.maxsize)
+    app.run()

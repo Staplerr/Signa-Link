@@ -18,7 +18,7 @@ if not tempDirectory.exists():
 outputFile = parentDirectory.joinpath("Output.csv")
 
 #Opencv config
-sample = 5 #Save frame every n frame
+baseSample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
 resizeRation = 10
 resizeInterpolation = cv2.INTER_AREA
@@ -43,14 +43,16 @@ handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip"
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
                       "pinky tip"]
 columnNames = ["Label"]
-
 for i in range(frameBuffer):
     for columnName in poseColumnNameList:
-        columnNames.append(f"{columnName}_{i}")
+        for axis in ["X", "Y", "Z"]:
+            columnNames.append(f"{columnName}_{axis}_{i}")
     for columnName in handColumnNameList:
-        columnNames.append(f"right_{columnName}_{i}")
+        for axis in ["X", "Y", "Z"]:
+            columnNames.append(f"right_{columnName}_{axis}_{i}")
     for columnName in handColumnNameList:
-        columnNames.append(f"left_{columnName}_{i}")
+        for axis in ["X", "Y", "Z"]:
+            columnNames.append(f"left_{columnName}_{axis}_{i}")
 df = pd.DataFrame(columns=columnNames)
 
 labelList = {"กรอบ": 0,     "กระเพรา": 1,    "ขา": 2,       "ข้าว": 3,
@@ -91,7 +93,7 @@ def getFilePATHS(directory):
     return videoPATHs
 
 
-def addLandmarks(coordinates, array):
+def addLandmarks(coordinates, array): #Function for adding new landmarks to array
     if type(coordinates[0]) == mpLandmark.Landmark:
         for landmark in coordinates:
             value = np.array([landmark.x, landmark.y, landmark.z], dtype=np.float16)
@@ -102,9 +104,8 @@ def addLandmarks(coordinates, array):
     return array #Return 2D np array
 
 
-def generateFrameLandmarks(frame):
+def generateFrameLandmarks(frame): #Function for generating landmarks for single frame
     frame = mp.Image.create_from_file(frame)
-
     poseResult = poseLandmarker.detect(image=frame)
     poseCoordinates = poseResult.pose_world_landmarks
     if len(poseCoordinates) == 0:
@@ -132,65 +133,70 @@ def generateFrameLandmarks(frame):
                 break
             else:
                 coordinatesArray = addLandmarks(handCoordinates[index], coordinatesArray)
-
     coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
+
     return coordinatesArray #return 2D np array
 
 
-def removeExcessLandmarks(startArray): #This definitely will break if length of input array is lower than sample * frameBuffer
-    array = []
-    middlePosition = int(np.ceil(len(startArray) / 2)) - 1 #Middle position of input array, median?
-    array.append(startArray[middlePosition])
-    currentValuePosition = [middlePosition, middlePosition] #Use for calculate which is the next position needed to be add to array.
+def removeExcessFrames(frameList, sample): #Convert from frames to landmarks of video
+    landmarksArray = []
+    middlePosition = int(np.ceil(len(frameList) / 2)) - 1 #Middle position of input array, median?
+    currentPosition = [middlePosition, middlePosition] #Use for calculate which is the next position needed to be add to array.
     addToBack = True
-    
-    #Jam landmarks into available spot
-    while len(array) < frameBuffer:
+
+    while len(landmarksArray) < frameBuffer:
         direction = int(addToBack) #0 = front, 1 = back
-        positionToAdd = direction * len(array) #Position to add element to the array that got return
-        valuePosition = currentValuePosition[direction] + (sample * (direction * 2 - 1)) #Position in the startArray that will be added to return array
-        #Check if the index is out of range, if so then it will move closer to last position
+        positionToAdd = direction * len(landmarksArray) #Position to add element to the array that got return
+        valuePosition = currentPosition[direction] + (sample * (direction * 2 - 1)) #Position in the frameList that will be added to return array
         while True:
             try:
-                if valuePosition < 0: #Preventing from adding the value that have been count from the back of startArray.
-                    raise IndexError
-                array.insert(positionToAdd, startArray[valuePosition])
-                break
-            except IndexError:
+                if valuePosition >= 0: #Preventing from adding the value that have been count from the back of frameList.
+                    landmark = generateFrameLandmarks(str(frameList[valuePosition]))
+                    if type(landmark) == np.ndarray:
+                        break
+                #print(f"Error raised, value position: {valuePosition}, current position: {currentPosition[direction]}, direction: {direction}, position to add: {positionToAdd}, landmark: {landmark}")
+                raise IndexError
+            except IndexError: #Only execute when the value position is below zero
                 valuePosition -= (direction * 2 - 1)
-        currentValuePosition[direction] = valuePosition
+        landmarksArray.insert(positionToAdd, landmark)
+        currentPosition[direction] = valuePosition
         addToBack = not addToBack
 
     #return array
-    return np.array(array, dtype=np.float16)
+    return np.array(landmarksArray, dtype=np.float16)
 
 
-def videoToLandmarks(videoPATH):
-    landmarks = []
+def videoToLandmarks(videoPATH, sample):
     cap = cv2.VideoCapture(str(videoPATH))
+    frameList = []
     currentFrame = 0
+    totalFrame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    landmarks = []
 
+    if totalFrame < frameBuffer:
+        return None
+    while totalFrame < frameBuffer * sample and sample != 1:
+        sample -= 1
+    print(f"Video: {videoPATH.name} Total frame: {totalFrame} Sample: {sample}")
     #capture all frame the video has
     while cap.isOpened:
         ret, frame = cap.read()
         if ret:
-            file = tempDirectory.joinpath(f"{videoPATH.name}_{currentFrame}.png")
             #np array = impossible to detect hand, image file = really easy to detect
+            file = tempDirectory.joinpath(f"{videoPATH.name}_{currentFrame}.png")
             height = int(np.floor(frame.shape[0] / resizeRation))
             width = int(np.floor(frame.shape[1] / resizeRation))
             frame = cv2.resize(frame, (width, height), interpolation=resizeInterpolation)
             cv2.imwrite(str(file), frame)
-
-            landmarkResult = generateFrameLandmarks(str(file))
-            if type(landmarkResult) == np.ndarray: #Prevent from adding frame that no pose has been detected
-                landmarks.append(landmarkResult) #Array of 2D np array
-            os.remove(file)
+            frameList.append(file)
             currentFrame += 1
         else:
             break
     cap.release()
-    
-    landmarks = removeExcessLandmarks(landmarks)
+    landmarks = removeExcessFrames(frameList, sample)
+    for file in frameList:
+        os.remove(file)
+
     return landmarks #Return "3D" np array
 
 
@@ -201,8 +207,11 @@ totalFile = len(videoPaths)
 for index, video in enumerate(videoPaths):
     label = labelList[video.parent.name]
 
-    landmarks = videoToLandmarks(video)
-    landmarks = landmarks.reshape((-1, 3))
+    landmarks = videoToLandmarks(video, baseSample)
+    if type(landmarks) != np.ndarray:
+        print(f"Skip {video.name}")
+        continue
+    landmarks = landmarks.reshape((-1))
     landmarks = landmarks.tolist()
     landmarks.insert(0, label)
 
