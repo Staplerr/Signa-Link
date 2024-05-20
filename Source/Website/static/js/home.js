@@ -100,23 +100,31 @@ const handleStream = (stream) => {
 
   streamStarted = true;
 
-  //Set up function so it could be use with interval
-  function getPrediction(stream) {
+  // Set up function so it could be used with interval
+  function getPrediction(stream, waitTime) {
     callPredictImage(stream).then((result) => {
       if (result != null) {
         if (result["confidence"] > minConfidence * 100) {
           console.log(result);
-          //const node = document.createTextNode(result["label"])
+          // Display the prediction results
           labelOutput.innerHTML = "Output: " + result["label"];
           confidenceOutput.innerHTML =
             "Confidence: " + result["confidence"] + "%";
           inferenceTimeOutput.innerHTML =
             "Inference time: " + result["inferenceTime"] + "s";
+
+          setTimeout(() => {
+            labelOutput.innerHTML = "";
+            confidenceOutput.innerHTML = "";
+            inferenceTimeOutput.innerHTML = "";
+          }, waitTime * 1000); // waitTime is in seconds, converting to milliseconds
         }
       }
     });
   }
-  setInterval(getPrediction, 1000 / fps, stream); //Interval that with predict label of current frame!
+
+  const waitTime = 5; // Time in seconds to wait before clearing the output
+  setInterval(() => getPrediction(stream, waitTime), 1000 / fps); // Interval that will predict the label of the current frame
 };
 
 getCameraSelection();
