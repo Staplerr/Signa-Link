@@ -36,9 +36,9 @@ sample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
 retryChance = 2
 
-#Matrix model stuff
-matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model.keras"))
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
+#Matrix model stuff static/model/matrix_model.keras
+matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
 labelList = ["กรอบ",    "กระเพรา",  "ขา",       "ข้าว",
              "ไข่",      "คะน้า",     "เค็ม",      "โจ๊ก",
              "แดง",     "ต้ม",       "แตงโม",    "น้ำพริกเผา",

@@ -28,8 +28,7 @@ policy = configFile['Options']['policy']
 batchSize = int(configFile['Options']['batchSize'])
 
 keras.mixed_precision.set_global_policy(policy)
-outputFolderName = parentDirectory.joinpath(f"Matrix model/matrix_model_{policy}")
-outputFolderName.mkdir(parents=True, exist_ok=True)
+modelName = parentDirectory.joinpath(f"Matrix model/matrix_model_{policy}")
 
 def preprocessData(dataset):
     label = dataset["Label"].values
@@ -55,7 +54,7 @@ print(f"Dataset load time: {loadFinish - loadStart}")
 print(f"Total data in train dataset: {len(trainData)}, Total data in test dataset: {len(testData)} ")
 
 model = keras.models.Sequential([
-    layers.InputLayer(2010),
+    layers.InputLayer(input_shape=(2010,)),
     layers.Dense(1024, activation=nn.relu),
     layers.Dropout(0.5),
     layers.Dense(512, activation=nn.relu),
@@ -75,7 +74,7 @@ model.fit(trainData, trainLabel, epochs=50, batch_size=batchSize)
 model.evaluate(testData, testLabel, batch_size=batchSize)
 
 trainEnd = time.perf_counter()
-model.save(str(outputFolderName.joinpath("matrix_model.keras")))
-keras.utils.plot_model(model, str(outputFolderName.joinpath("architecture.png")),
-                       show_shapes=True, dpi=256)
+model.save(modelName)
+#keras.utils.plot_model(model, str(outputFolderName.joinpath("architecture.png")),
+#                       show_shapes=True, dpi=256)
 print(f"Training time: {trainEnd - trainStart}")
