@@ -103,6 +103,7 @@ def generateFrameLandmarks(frame):
     except: #Occur when saving image gone wrong, don't know how but it did.
         return None
 
+    mpPredictStart = time.perf_counter()
     poseResult = poseLandmarker.detect(image=frame)
     poseCoordinates = poseResult.pose_world_landmarks
     if len(poseCoordinates) == 0:
@@ -110,6 +111,7 @@ def generateFrameLandmarks(frame):
     handResult = handLandmarker.detect(image=frame)
     handedness = handResult.handedness
     handCoordinates = handResult.hand_world_landmarks
+    mpPredictTime = time.perf_counter() - mpPredictStart
 
     coordinatesArray = np.empty((3, ), dtype=np.float16)
     coordinatesArray = addLandmarks(poseCoordinates[0][:25], coordinatesArray)
@@ -133,7 +135,7 @@ def generateFrameLandmarks(frame):
 
     coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
     coordinatesArray = np.nan_to_num(coordinatesArray) #Replace nan with 0
-    return coordinatesArray #return 2D np array
+    return [coordinatesArray, mpPredictTime] #return 2D np array and float
 
 @app.route('/predictImage', methods=['POST'])
 def predictImage():
@@ -151,29 +153,30 @@ def predictImage():
                 "inferenceTime" : None}
 
     if currentFrame / sample - currentFrame // sample == 0:
-        startTime = time.perf_counter()
         imagePATH = tempDirectory.joinpath(f"frame_{currentFrame}.png")
-        landmarkResult = generateFrameLandmarks(str(imagePATH))
+        mpResult = generateFrameLandmarks(str(imagePATH))
 
-        if type(landmarkResult) != np.ndarray: #Give it another chance when did not detect body
+        if type(mpResult) != list: #Give it another chance when did not detect body
             for i in range(retryChance):
                 imagePATH = tempDirectory.joinpath(f"frame_{currentFrame - i}.png")
                 try:
-                    landmarkResult = generateFrameLandmarks(str(imagePATH))
-                    if type(landmarkResult) == np.ndarray: break
+                    mpResult = generateFrameLandmarks(str(imagePATH))
+                    if type(mpResult) == list: break
                 except: pass
 
-        if type(landmarkResult) == np.ndarray:
-            session["landmarks"] = np.vstack([landmarkResult, session["landmarks"]], dtype=np.float16)
+        if type(mpResult) == list:
+            session["landmarks"] = np.vstack([mpResult[0], session["landmarks"]], dtype=np.float16)
             session["landmarks"] = session["landmarks"][:-(len(poseColumnNameList) + len(handColumnNameList) * 2)]
             landmarks = session["landmarks"]
 
             processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2)))
 
+            nnPredictStart = time.perf_counter()
             prediction = matrixModel.predict(processedLandmark, verbose=3)
 
             #Add data to dictionary
-            dataDict["inferenceTime"] = time.perf_counter() - startTime
+            dataDict["inferenceTime"] = {"Neural network" : time.perf_counter() - nnPredictStart,
+                                         "Mediapipe" : mpResult[1]}
             dataDict["label"] = labelList[np.argmax(prediction)]
             dataDict["confidence"] = prediction[0][np.argmax(prediction[0])] * 100
             
@@ -181,6 +184,7 @@ def predictImage():
             log = open(str(logFile), "a")
             log.write(f"Time: {datetime.now()} Returned: {dataDict} Landmarks: {landmarks}\n\n")
             log.close()
+            print("receive")
 
     try:
         os.remove(str(tempDirectory.joinpath(f"frame_{currentFrame - 5}.png")))

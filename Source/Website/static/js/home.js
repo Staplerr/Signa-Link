@@ -20,8 +20,16 @@ const [play, pause, screenshot] = buttons;
 
 const constraints = {
   video: {
-    width: { min: 720, ideal: 720, max: 1080 },
-    height: { min: 1280, ideal: 1280, max: 1920 },
+    width: {
+      min: 1280,
+      ideal: 1280,
+      max: 1920,
+    },
+    height: {
+      min: 720,
+      ideal: 720,
+      max: 1080,
+    },
   },
 };
 
@@ -34,23 +42,23 @@ function closeSetting() {
 }
 
 async function captureImage(stream) {
-  //Get track from stream then get frame from track
+  // Get track from stream then get frame from track
   const track = stream.getVideoTracks()[0];
-  const image = new ImageCapture(track);
-  const photoBlob = await image.grabFrame();
+  const imageCapture = new ImageCapture(track);
+  const photoBlob = await imageCapture.grabFrame();
 
-  //Add frame to canvas so it could be convert to data URL later
+  // Add frame to canvas so it could be converted to data URL later
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
-  canvas.width = constraints.video.width.ideal / resizeRatio; //Resize image to decrease load on the server
+  canvas.width = constraints.video.width.ideal / resizeRatio; // Resize image to decrease load on the server
   canvas.height = constraints.video.height.ideal / resizeRatio;
   context.drawImage(photoBlob, 0, 0, canvas.width, canvas.height);
 
   const dataUrl = canvas.toDataURL(); // Convert to data URL
-  return dataUrl; //Return promise
+  return dataUrl; // Return promise
 }
 
-//Function for calling python api
+// Function for calling python API
 async function callPredictImage(stream) {
   let frameURL = await captureImage(stream);
   const response = await fetch("http://127.0.0.1:5000/predictImage", {
@@ -62,7 +70,7 @@ async function callPredictImage(stream) {
 
 const getCameraSelection = async () => {
   const devices = await navigator.mediaDevices.enumerateDevices();
-  const videoDevices = devices.filter((device) => device.kind == "videoinput");
+  const videoDevices = devices.filter((device) => device.kind === "videoinput");
   const options = videoDevices.map((videoDevice) => {
     return `<option value="${videoDevice.deviceId}">${videoDevice.label}</option>`;
   });
@@ -79,8 +87,11 @@ play.onclick = () => {
   if ("mediaDevices" in navigator && navigator.mediaDevices.getUserMedia) {
     const updatedConstraints = {
       ...constraints,
-      deviceId: {
-        exact: cameraOptions.value,
+      video: {
+        ...constraints.video,
+        deviceId: {
+          exact: cameraOptions.value,
+        },
       },
     };
     startStream(updatedConstraints);
@@ -88,8 +99,26 @@ play.onclick = () => {
 };
 
 const startStream = async (constraints) => {
-  const stream = await navigator.mediaDevices.getUserMedia(constraints);
-  handleStream(stream);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    handleStream(stream);
+  } catch (error) {
+    if (error.name === "OverconstrainedError") {
+      console.error("Constraints could not be satisfied by available devices.", error);
+      // Fallback to less strict constraints
+      const fallbackConstraints = {
+        video: true,
+      };
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+        handleStream(stream);
+      } catch (fallbackError) {
+        console.error("Error accessing media devices.", fallbackError);
+      }
+    } else {
+      console.error("Error accessing media devices.", error);
+    }
+  }
 };
 
 const handleStream = (stream) => {
@@ -101,30 +130,26 @@ const handleStream = (stream) => {
   streamStarted = true;
 
   // Set up function so it could be used with interval
-  function getPrediction(stream, waitTime) {
+  function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
       if (result != null) {
-        if (result["confidence"] > minConfidence * 100) {
+        if (result.confidence > minConfidence * 100) {
           console.log(result);
           // Display the prediction results
-          labelOutput.innerHTML = "Output: " + result["label"];
-          confidenceOutput.innerHTML =
-            "Confidence: " + result["confidence"] + "%";
+          labelOutput.innerHTML = "Output: " + result.label;
+          confidenceOutput.innerHTML = "Confidence: " + result.confidence + "%";
           inferenceTimeOutput.innerHTML =
-            "Inference time: " + result["inferenceTime"] + "s";
-
-          setTimeout(() => {
-            labelOutput.innerHTML = "";
-            confidenceOutput.innerHTML = "";
-            inferenceTimeOutput.innerHTML = "";
-          }, waitTime * 1000); // waitTime is in seconds, converting to milliseconds
+            "Inference time: " +
+            result.inferenceTime["Neural network"] +
+            "s " +
+            result.inferenceTime["Mediapipe"] +
+            "s";
         }
       }
     });
   }
 
-  const waitTime = 5; // Time in seconds to wait before clearing the output
-  setInterval(() => getPrediction(stream, waitTime), 1000 / fps); // Interval that will predict the label of the current frame
+  setInterval(() => getPrediction(stream), 1000 / fps); // Interval that will predict the label of the current frame
 };
 
 getCameraSelection();
