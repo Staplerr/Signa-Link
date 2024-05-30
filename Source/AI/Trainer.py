@@ -9,14 +9,9 @@ import time
 import configparser
 
 parentDirectory = Path(__file__).parent
-labelList = {"กรอบ": 0,     "กระเพรา": 1,    "ขา": 2,       "ข้าว": 3,
-             "ไข่": 4,       "คะน้า": 5,      "เค็ม": 6,       "โจ๊ก": 7,
-             "แดง": 8,      "ต้ม": 9,        "แตงโม": 10,    "น้ำพริกเผา": 11,
-             "บะหมี่": 12,    "เปรี้ยว": 13,    "ผัด": 14,       "ฝรั่ง": 15,
-             "พริกแกง": 16,  "มะม่วง": 17,    "ม้า": 18,       "มาม่า": 19,
-             "ลูกชิ้นปลา": 20, "เลือด": 21,     "สับ": 22,       "เส้นเล็ก": 23,
-             "เส้นใหญ่": 24,  "หมู": 25,       "หวาน": 26,     "องุ่น": 27,
-             "แอปเปิ้ล": 28}
+labelList = {"กรอบ": 0,     "กิน": 1,    "ข้าว": 2,       "คุณสบายดีไหม": 3,
+             "ผัด": 4,       "สวัสดี": 5,      "หมู": 6,       "ไหน": 7,
+             "อยู่": 8,}
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
     raise Exception("No config file found")
@@ -55,13 +50,11 @@ print(f"Total data in train dataset: {len(trainData)}, Total data in test datase
 
 model = keras.models.Sequential([
     layers.InputLayer(input_shape=(2010,)),
-    layers.Dense(1024, activation=nn.relu),
-    layers.Dropout(0.5),
     layers.Dense(512, activation=nn.relu),
     layers.Dropout(0.5),
     layers.Dense(256, activation=nn.relu),
     layers.Dropout(0.5),
-    layers.Dense(128, activation=nn.relu),
+    layers.Dense(64, activation=nn.relu),
     layers.Dropout(0.5),
     layers.Dense(len(labelList), activation=nn.softmax)
 ])

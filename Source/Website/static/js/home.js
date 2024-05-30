@@ -2,13 +2,15 @@ feather.replace();
 
 const minConfidence = 0.5;
 const fps = 30;
-const resizeRatio = 10;
+const resizeRatio = 5;
+const maxNone = 150;
+let noneCount = 0;
 
 const labelOutput = document.getElementById("label-output");
 const confidenceOutput = document.getElementById("confidence-output");
 const inferenceTimeOutput = document.getElementById("inference-time-output");
 
-const optionDiv = document.getElementById("setting-box");
+const settingBox = document.getElementById("setting-box");
 
 const controls = document.querySelector(".controls");
 const cameraOptions = document.querySelector(".video-options>select");
@@ -34,11 +36,11 @@ const constraints = {
 };
 
 function showSetting() {
-  optionDiv.style.display = "block";
+  settingBox.style.display = "block";
 }
 
 function closeSetting() {
-  optionDiv.style.display = "none";
+  settingBox.style.display = "none";
 }
 
 async function captureImage(stream) {
@@ -132,18 +134,22 @@ const handleStream = (stream) => {
   // Set up function so it could be used with interval
   function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
-      if (result != null) {
-        if (result.confidence > minConfidence * 100) {
-          console.log(result);
-          // Display the prediction results
-          labelOutput.innerHTML = "Output: " + result.label;
-          confidenceOutput.innerHTML = "Confidence: " + result.confidence + "%";
-          inferenceTimeOutput.innerHTML =
-            "Inference time: " +
-            result.inferenceTime["Neural network"] +
-            "s " +
-            result.inferenceTime["Mediapipe"] +
-            "s";
+      console.log(result);
+      if (result.confidence != null && result.confidence > minConfidence * 100) {
+        // Display the prediction results
+        labelOutput.innerHTML = "Output: " + result.label;
+        confidenceOutput.innerHTML = "Confidence: " + result.confidence + "%";
+        inferenceTimeOutput.innerHTML ="Inference time: " +
+          result.inferenceTime["Neural network"] + "s " +
+          result.inferenceTime["Mediapipe"] + "s";
+        noneCount = 0;
+      }
+      else {
+        noneCount++;
+        if (noneCount >= maxNone) {
+          labelOutput.innerHTML = "Output: -";
+          confidenceOutput.innerHTML = "Confidence: 0%";
+          inferenceTimeOutput.innerHTML = "Inference time: 0s";
         }
       }
     });

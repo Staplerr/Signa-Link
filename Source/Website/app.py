@@ -39,14 +39,9 @@ retryChance = 2
 #Matrix model stuff static/model/matrix_model.keras
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
 keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
-labelList = ["กรอบ",    "กระเพรา",  "ขา",       "ข้าว",
-             "ไข่",      "คะน้า",     "เค็ม",      "โจ๊ก",
-             "แดง",     "ต้ม",       "แตงโม",    "น้ำพริกเผา",
-             "บะหมี่",    "เปรี้ยว",    "ผัด",       "ฝรั่ง",
-             "พริกแกง",  "มะม่วง",    "ม้า",       "มาม่า",
-             "ลูกชิ้นปลา", "เลือด",     "สับ",       "เส้นเล็ก",
-             "เส้นใหญ่",  "หมู",       "หวาน",     "องุ่น",
-             "แอปเปิ้ล"]
+labelList = ["กรอบ",     "กิน",    "ข้าว",       "คุณสบายดีไหม",
+             "ผัด",       "สวัสดี",      "หมู",       "ไหน",
+             "อยู่",]
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
                       "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
                       "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
@@ -184,7 +179,6 @@ def predictImage():
             log = open(str(logFile), "a")
             log.write(f"Time: {datetime.now()} Returned: {dataDict} Landmarks: {landmarks}\n\n")
             log.close()
-            print("receive")
 
     try:
         os.remove(str(tempDirectory.joinpath(f"frame_{currentFrame - 5}.png")))
