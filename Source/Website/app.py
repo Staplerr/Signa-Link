@@ -38,10 +38,18 @@ retryChance = 2
 
 #Matrix model stuff static/model/matrix_model.keras
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
-labelList = ["กรอบ",     "กิน",    "ข้าว",       "คุณสบายดีไหม",
-             "ผัด",       "สวัสดี",      "หมู",       "ไหน",
-             "อยู่",]
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
+batchSize = 512
+labelList = ["นิ่ง",
+             "กรอบ",
+             "กิน",
+             "ข้าว",
+             "คุณสบายดีไหม",
+             "ผัด",
+             "สวัสดี",
+             "หมู",
+             "ไหน",
+             "อยู่"]
 poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
                       "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
                       "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
@@ -167,13 +175,13 @@ def predictImage():
             processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2)))
 
             nnPredictStart = time.perf_counter()
-            prediction = matrixModel.predict(processedLandmark, verbose=3)
+            prediction = matrixModel.predict(processedLandmark, batch_size=batchSize, verbose=3)
 
             #Add data to dictionary
             dataDict["inferenceTime"] = {"Neural network" : time.perf_counter() - nnPredictStart,
                                          "Mediapipe" : mpResult[1]}
             dataDict["label"] = labelList[np.argmax(prediction)]
-            dataDict["confidence"] = prediction[0][np.argmax(prediction[0])] * 100
+            dataDict["confidence"] = np.round(prediction[0][np.argmax(prediction[0])] * 100, 2)
             
             app.logger.info(f"Returned: {dataDict}")
             log = open(str(logFile), "a")

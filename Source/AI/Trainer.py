@@ -9,9 +9,16 @@ import time
 import configparser
 
 parentDirectory = Path(__file__).parent
-labelList = {"กรอบ": 0,     "กิน": 1,    "ข้าว": 2,       "คุณสบายดีไหม": 3,
-             "ผัด": 4,       "สวัสดี": 5,      "หมู": 6,       "ไหน": 7,
-             "อยู่": 8,}
+labelList = {"นิ่ง": 0,
+             "กรอบ": 1,
+             "กิน": 2,
+             "ข้าว": 3,
+             "คุณสบายดีไหม": 4,
+             "ผัด": 5,
+             "สวัสดี": 6,
+             "หมู": 7,
+             "ไหน": 8,
+             "อยู่": 9}
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
     raise Exception("No config file found")
@@ -50,11 +57,13 @@ print(f"Total data in train dataset: {len(trainData)}, Total data in test datase
 
 model = keras.models.Sequential([
     layers.InputLayer(input_shape=(2010,)),
+    layers.Dense(1024, activation=nn.relu),
+    layers.Dropout(0.5),
     layers.Dense(512, activation=nn.relu),
     layers.Dropout(0.5),
     layers.Dense(256, activation=nn.relu),
     layers.Dropout(0.5),
-    layers.Dense(64, activation=nn.relu),
+    layers.Dense(128, activation=nn.relu),
     layers.Dropout(0.5),
     layers.Dense(len(labelList), activation=nn.softmax)
 ])

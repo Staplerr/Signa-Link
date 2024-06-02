@@ -55,9 +55,16 @@ for i in range(frameBuffer):
             columnNames.append(f"left_{columnName}_{axis}_{i}")
 df = pd.DataFrame(columns=columnNames)
 
-labelList = {"กรอบ": 0,     "กิน": 1,    "ข้าว": 2,       "คุณสบายดีไหม": 3,
-             "ผัด": 4,       "สวัสดี": 5,      "หมู": 6,       "ไหน": 7,
-             "อยู่": 8,}
+labelList = {"นิ่ง": 0,
+             "กรอบ": 1,
+             "กิน": 2,
+             "ข้าว": 3,
+             "คุณสบายดีไหม": 4,
+             "ผัด": 5,
+             "สวัสดี": 6,
+             "หมู": 7,
+             "ไหน": 8,
+             "อยู่": 9}
 
 #mediapipe config
 minPoseConfidence = 0.5
