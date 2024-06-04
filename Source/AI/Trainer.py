@@ -9,9 +9,9 @@ import time
 import configparser
 
 parentDirectory = Path(__file__).parent
-labelList = {"กรอบ": 0,     "กิน": 1,    "ข้าว": 2,       "คุณสบายดีไหม": 3,
-             "ผัด": 4,       "สวัสดี": 5,      "หมู": 6,       "ไหน": 7,
-             "อยู่": 8,}
+labelList = {"นิ่ง": 0,     "กระหรี่": 1,    "กิน": 2,       "คุณสบายดีไหม": 3,
+               "ผัด": 4,      "สวัสดี": 5,       "หมู": 6,
+             "ไหน": 7, "อยู่":8}
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
     raise Exception("No config file found")
@@ -23,7 +23,7 @@ policy = configFile['Options']['policy']
 batchSize = int(configFile['Options']['batchSize'])
 
 keras.mixed_precision.set_global_policy(policy)
-modelName = parentDirectory.joinpath(f"Matrix model/matrix_model_{policy}")
+modelName = parentDirectory.joinpath(f"Matrix model/matrix_model")
 
 def preprocessData(dataset):
     label = dataset["Label"].values
@@ -40,7 +40,7 @@ def splitData(data, label, ratio):
     return trainData, testData, trainLabel, testLabel
 
 #Preparing dataset
-dataset = pd.read_csv(parentDirectory.joinpath("Dataset.csv"))
+dataset = pd.read_csv(parentDirectory.joinpath("Output.csv"))
 loadStart = time.perf_counter()
 data, label = preprocessData(dataset)
 trainData, testData, trainLabel, testLabel = splitData(data, label, 0.8)
