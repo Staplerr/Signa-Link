@@ -9,16 +9,25 @@ import time
 import configparser
 
 parentDirectory = Path(__file__).parent
+#labelList = {"นิ่ง": 0,
+#             "กรอบ": 1,
+#             "กิน": 2,
+#             "ข้าว": 3,
+#             "คุณสบายดีไหม": 4,
+#             "ผัด": 5,
+#             "สวัสดี": 6,
+#             "หมู": 7,
+#             "ไหน": 8,
+#             "อยู่": 9}
 labelList = {"นิ่ง": 0,
              "กรอบ": 1,
              "กิน": 2,
              "ข้าว": 3,
              "คุณสบายดีไหม": 4,
-             "ผัด": 5,
-             "สวัสดี": 6,
-             "หมู": 7,
-             "ไหน": 8,
-             "อยู่": 9}
+             "สวัสดี": 5,
+             "หมู": 6,
+             "ไหน": 7,
+             "อยู่": 8}
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
     raise Exception("No config file found")

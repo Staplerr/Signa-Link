@@ -3,8 +3,9 @@ feather.replace();
 const minConfidence = 0.5;
 const fps = 30;
 const resizeRatio = 5;
-const maxNone = 150;
-let noneCount = 0;
+const sameCountThreshold = 3;
+let sameCount = 0;
+let lastPredict = "";
 
 const labelOutput = document.getElementById("label-output");
 const confidenceOutput = document.getElementById("confidence-output");
@@ -134,22 +135,23 @@ const handleStream = (stream) => {
   // Set up function so it could be used with interval
   function getPrediction(stream) {
     callPredictImage(stream).then((result) => {
-      console.log(result);
+      //console.log(result);
       if (result.confidence != null && result.confidence > minConfidence * 100) {
-        // Display the prediction results
-        labelOutput.innerHTML = "Output: " + result.label;
-        confidenceOutput.innerHTML = "Confidence: " + result.confidence + "%";
-        inferenceTimeOutput.innerHTML ="Inference time: " +
-          result.inferenceTime["Neural network"] + "s " +
-          result.inferenceTime["Mediapipe"] + "s";
-        noneCount = 0;
-      }
-      else {
-        noneCount++;
-        if (noneCount >= maxNone) {
-          labelOutput.innerHTML = "Output: -";
-          confidenceOutput.innerHTML = "Confidence: 0%";
-          inferenceTimeOutput.innerHTML = "Inference time: 0s";
+        if (lastPredict == result.label) {
+          sameCount += 0.01 * result.confidence;
+        }
+        else {
+          lastPredict = result.label;
+          sameCount = 0;
+        }
+        console.log(sameCount);
+        if (sameCount >= sameCountThreshold) {
+          // Display the prediction results
+          labelOutput.innerHTML = "Output: " + result.label;
+          confidenceOutput.innerHTML = "Confidence: " + result.confidence + "%";
+          inferenceTimeOutput.innerHTML ="Inference time: " +
+            result.inferenceTime["Neural network"] + "s " +
+            result.inferenceTime["Mediapipe"] + "s";
         }
       }
     });
@@ -157,5 +159,9 @@ const handleStream = (stream) => {
 
   setInterval(() => getPrediction(stream), 1000 / fps); // Interval that will predict the label of the current frame
 };
+
+window.addEventListener('beforeunload', function (event) {
+  navigator.sendBeacon('/close');
+});
 
 getCameraSelection();

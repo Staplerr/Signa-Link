@@ -15,7 +15,7 @@ inputDirectory = parentDirectory.joinpath("Videos")
 tempDirectory = parentDirectory.joinpath("Temp")
 if not tempDirectory.exists():
     tempDirectory.mkdir(parents=True)
-outputFile = parentDirectory.joinpath("Output.csv")
+outputFile = parentDirectory.joinpath("noPad.csv")
 
 #Opencv config
 baseSample = 5 #Save frame every n frame
@@ -55,16 +55,25 @@ for i in range(frameBuffer):
             columnNames.append(f"left_{columnName}_{axis}_{i}")
 df = pd.DataFrame(columns=columnNames)
 
+#labelList = {"นิ่ง": 0,
+#             "กรอบ": 1,
+#             "กิน": 2,
+#             "ข้าว": 3,
+#             "คุณสบายดีไหม": 4,
+#             "ผัด": 5,
+#             "สวัสดี": 6,
+#             "หมู": 7,
+#             "ไหน": 8,
+#             "อยู่": 9}
 labelList = {"นิ่ง": 0,
              "กรอบ": 1,
              "กิน": 2,
              "ข้าว": 3,
              "คุณสบายดีไหม": 4,
-             "ผัด": 5,
-             "สวัสดี": 6,
-             "หมู": 7,
-             "ไหน": 8,
-             "อยู่": 9}
+             "สวัสดี": 5,
+             "หมู": 6,
+             "ไหน": 7,
+             "อยู่": 8}
 
 #mediapipe config
 minPoseConfidence = 0.5

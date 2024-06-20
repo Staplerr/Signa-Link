@@ -40,12 +40,21 @@ retryChance = 2
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
 keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
 batchSize = 512
+#labelList = ["นิ่ง",
+#             "กรอบ",
+#             "กิน",
+#             "ข้าว",
+#             "คุณสบายดีไหม",
+#             "ผัด",
+#             "สวัสดี",
+#             "หมู",
+#             "ไหน",
+#             "อยู่"]
 labelList = ["นิ่ง",
              "กรอบ",
              "กิน",
              "ข้าว",
              "คุณสบายดีไหม",
-             "ผัด",
              "สวัสดี",
              "หมู",
              "ไหน",
