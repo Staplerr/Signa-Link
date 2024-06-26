@@ -1,6 +1,4 @@
 import mediapipe as mp
-from mediapipe.tasks.python.components.containers import landmark as mpLandmark
-from mediapipe.tasks.python import vision
 import pandas as pd
 import time
 import cv2
@@ -18,13 +16,8 @@ outputFile = parentDirectory.joinpath("Output.csv")
 
 # Opencv config
 baseSample = 5
-resizeRatio = 10
+resizeRatio = [5, 9]
 resizeInterpolation = cv2.INTER_AREA
-
-# mp models
-modelDirectory = parentDirectory.joinpath("Model")
-handModel = modelDirectory.joinpath("hand_landmarker.task")
-poseModel = modelDirectory.joinpath("pose_landmarker_full.task")
 
 # For reading all files in the video folder
 supportsExtension = ["**/*.mp4", "**/*.mov"]
@@ -38,24 +31,9 @@ for index, word in enumerate(inputDirectory.iterdir()):
 # mediapipe config
 minPoseConfidence = 0.5
 minHandConfidence = 0.5
-baseOptions = mp.tasks.BaseOptions
-poseLandmarker = vision.PoseLandmarker
-poseLandmarkerOptions = vision.PoseLandmarkerOptions
-handLandmarker = vision.HandLandmarker
-handLandmarkerOptions = vision.HandLandmarkerOptions
-visionRunningMode = vision.RunningMode
-
-# create the landmarker object
-poseOption = poseLandmarkerOptions(base_options=baseOptions(model_asset_path=poseModel),
-                                   running_mode=vision.RunningMode.IMAGE,
-                                   min_pose_detection_confidence=minPoseConfidence)
-handOption = handLandmarkerOptions(base_options=baseOptions(model_asset_path=handModel),
-                                   running_mode=visionRunningMode.IMAGE,
-                                   min_hand_detection_confidence=minHandConfidence,
-                                   num_hands=2)
-poseLandmarker = poseLandmarker.create_from_options(poseOption)
-handLandmarker = handLandmarker.create_from_options(handOption)
-
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
+mp_hands = mp.solutions.hands
 
 videoPaths = {}
 for index, directory in enumerate(inputDirectory.iterdir()):
@@ -65,33 +43,89 @@ for index, directory in enumerate(inputDirectory.iterdir()):
 totalFile = len(videoPaths)
 tensorMatrix = []
 counter = 0
-
+Data = tf.constant([],shape=(0, 0, 2, 3), dtype=tf.float16)
+Label = tf.constant([],shape=(0,), dtype=tf.float16)
 for video, index in videoPaths.items():
-    print(video)
     cap = cv2.VideoCapture(str(video))
+    Label = tf.concat([Label, tf.constant([float(index)], dtype=tf.float16)], axis=0)
+    VideoTensor = tf.constant([],shape=(0, 2, 3), dtype=tf.float16)
+    print(Label)
+    with mp_hands.Hands(
+        model_complexity=0,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5) as hands:
+      while cap.isOpened():
+        success, image = cap.read()
+        if not success:
+          print("Ignoring empty camera frame.")
+          # If loading a video, use 'break' instead of 'continue'.
+          break
 
+        # To improve performance, optionally mark the image as not writeable to
+        # pass by reference.
+        image.flags.writeable = False
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        results = hands.process(image)
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        image = cv2.resize(image, (image.shape[0] // resizeRatio[0], image.shape[1] // resizeRatio[1]), interpolation=resizeInterpolation)
+        if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                if len(hand_landmarks.landmarks) == 2:
+                    for corrdinate in hand_landmarks.landmarks[0]:
+                       pass
+        # Flip the image horizontally for a selfie-view display.
+        cv2.imshow('MediaPipe Hands', image)
+        if cv2.waitKey(5) & 0xFF == 27:
+          break
+    cap.release()
+    cv2.destroyAllWindows()
+
+"""videoPaths = {}
+for index, directory in enumerate(inputDirectory.iterdir()):
+    for file in directory.iterdir():
+        videoPaths[file] = index
+        
+totalFile = len(videoPaths)
+tensorMatrix = []
+counter = 0
+Data = tf.constant([],shape=(0, 0, 2, 3), dtype=tf.float16)
+Label = tf.constant([],shape=(0,), dtype=tf.float16)
+for video, index in videoPaths.items():
+    cap = cv2.VideoCapture(str(video))
+    Label = tf.concat([Label, tf.constant([float(index)], dtype=tf.float16)], axis=0)
+    VideoTensor = tf.constant([],shape=(0, 2, 3), dtype=tf.float16)
+    print(Label)
     while cap.isOpened():
         ret, img = cap.read()
         if ret:
-            cv2.imshow("frame",img)
-            frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=img)
+            file = tempDirectory.joinpath("frame.png")
+            frame = cv2.resize(img, (img.shape[0] // resizeRatio[0], img.shape[1] // resizeRatio[1]), interpolation=resizeInterpolation)
+            cv2.imwrite(str(file), frame)
+            frame = mp.Image.create_from_file(str(file))
             poseResult = poseLandmarker.detect(image=frame)
-            poseCoordinates = poseResult.pose_world_landmarks
-            if len(poseCoordinates) == 0:
-                pass
             handResult = handLandmarker.detect(image=frame)
+            poseCoordinates = poseResult.pose_world_landmarks
             handedness = handResult.handedness
             handCoordinates = handResult.hand_world_landmarks
-            print(handResult)
-            #coordinatesTensor = tf.zeros([1, 3], dtype=tf.float16)
-            #coordinatesTensor = addLandmarks(poseCoordinates[0][:25], coordinatesTensor)
-            if cv2.waitKey(1) & 0xFF == ord('q'): 
-                break
+            print(handResult.multi_hand_landmarks)
+            print(handResult.multi_handedness)
+            #if handCoordinates != []:
+            #    print(len(handCoordinates))
+            #    print(handedness[0][0])
+                #print(handCoordinates[0][0])
+                #frameTensor = tf.stack([tf.constant([float("%.4f" % handCoordinates[0][0].x), float("%.4f" % handCoordinates[0][0].y), float("%.4f" % handCoordinates[0][0].z)], dtype=tf.float16),
+                #                         tf.constant([float("%.4f" % handCoordinates[0][1].x), float("%.4f" % handCoordinates[0][1].y), float("%.4f" % handCoordinates[0][1].z)], dtype=tf.float16)], axis=0)
+                #VideoTensor = tf.concat([VideoTensor, tf.reshape(frameTensor, (1, 2, 3))], axis=0)
+                #print(VideoTensor)
         else:
             break
 
+    if VideoTensor.shape[0] != 0:  # Check if VideoTensor is not empty
+        VideoTensor = tf.reshape(VideoTensor, (1, VideoTensor.shape[0], VideoTensor.shape[1], VideoTensor.shape[2]))
+        Data = tf.concat([Data, VideoTensor], axis=0)
+        print(Data)
     cap.release() 
-    cv2.destroyAllWindows() 
+    cv2.destroyAllWindows() """
 
 '''
 def addLandmarks(coordinates, tensor):  # Function for adding new landmarks to tensor

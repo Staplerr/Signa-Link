@@ -9,14 +9,25 @@ import time
 import configparser
 
 parentDirectory = Path(__file__).parent
-labelList = {"กรอบ": 0,     "กระเพรา": 1,    "ขา": 2,       "ข้าว": 3,
-             "ไข่": 4,       "คะน้า": 5,      "เค็ม": 6,       "โจ๊ก": 7,
-             "แดง": 8,      "ต้ม": 9,        "แตงโม": 10,    "น้ำพริกเผา": 11,
-             "บะหมี่": 12,    "เปรี้ยว": 13,    "ผัด": 14,       "ฝรั่ง": 15,
-             "พริกแกง": 16,  "มะม่วง": 17,    "ม้า": 18,       "มาม่า": 19,
-             "ลูกชิ้นปลา": 20, "เลือด": 21,     "สับ": 22,       "เส้นเล็ก": 23,
-             "เส้นใหญ่": 24,  "หมู": 25,       "หวาน": 26,     "องุ่น": 27,
-             "แอปเปิ้ล": 28}
+#labelList = {"นิ่ง": 0,
+#             "กรอบ": 1,
+#             "กิน": 2,
+#             "ข้าว": 3,
+#             "คุณสบายดีไหม": 4,
+#             "ผัด": 5,
+#             "สวัสดี": 6,
+#             "หมู": 7,
+#             "ไหน": 8,
+#             "อยู่": 9}
+labelList = {"นิ่ง": 0,
+             "กรอบ": 1,
+             "กิน": 2,
+             "ข้าว": 3,
+             "คุณสบายดีไหม": 4,
+             "สวัสดี": 5,
+             "หมู": 6,
+             "ไหน": 7,
+             "อยู่": 8}
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
     raise Exception("No config file found")
@@ -28,7 +39,7 @@ policy = configFile['Options']['policy']
 batchSize = int(configFile['Options']['batchSize'])
 
 keras.mixed_precision.set_global_policy(policy)
-ouputName = f"Matrix_model_{policy}"
+modelName = parentDirectory.joinpath(f"Matrix model/matrix_model_{policy}")
 
 def preprocessData(dataset):
     label = dataset["Label"].values
@@ -54,7 +65,7 @@ print(f"Dataset load time: {loadFinish - loadStart}")
 print(f"Total data in train dataset: {len(trainData)}, Total data in test dataset: {len(testData)} ")
 
 model = keras.models.Sequential([
-    layers.InputLayer(2010),
+    layers.InputLayer(input_shape=(2010,)),
     layers.Dense(1024, activation=nn.relu),
     layers.Dropout(0.5),
     layers.Dense(512, activation=nn.relu),
@@ -74,7 +85,7 @@ model.fit(trainData, trainLabel, epochs=50, batch_size=batchSize)
 model.evaluate(testData, testLabel, batch_size=batchSize)
 
 trainEnd = time.perf_counter()
-model.save(str(parentDirectory.joinpath(f"Matrix model/{ouputName}")))
-keras.utils.plot_model(model, str(parentDirectory.joinpath(f"Matrix model/{ouputName}/architecture.png")),
-                       show_shapes=True, dpi=256)
+model.save(modelName)
+#keras.utils.plot_model(model, str(outputFolderName.joinpath("architecture.png")),
+#                       show_shapes=True, dpi=256)
 print(f"Training time: {trainEnd - trainStart}")
