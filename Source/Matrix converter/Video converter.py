@@ -71,7 +71,7 @@ for video, index in videoPaths.items():
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
                 if len(hand_landmarks.landmarks) == 2:
-                    for corrdinate in hand_landmarks.landmarks[0]:
+                    for corrdinate in hand_landmarks.landmarks[0]: #return x y z
                        pass
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Hands', image)
