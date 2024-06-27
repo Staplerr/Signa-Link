@@ -88,7 +88,16 @@ if __name__ == "__main__":
             cv2.destroyAllWindows()
         
     print(f"All data collected: {Data.shape[0]}")
-    np.save("Data.npy", Data)
+
+    # saving things
+    try:
+        np.save(f"{parentDirectory}\Data\Features.npy", Data)
+    except Exception:
+        np.save(f"Features.npy", Data)
+    try:
+        np.save(f"{parentDirectory}\Data\label.npy", Label)
+    except Exception:
+        np.save(f"Label.npy", Label)
     with open('label.json', 'w') as f:
         json.dump(labelList, f)
 

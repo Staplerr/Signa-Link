@@ -7,46 +7,56 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 import Video_converter
+from pathlib import Path
 
-# load data
+# Load data
 labelDict = Video_converter.labelList
-Data = np.load("Data.npy")
-Label = np.load("Label.npy")
-print(f"Features : {Data.shape}\nLabels : {Label.shape}")
+Features = np.load(f"{str(Path(__file__).parent)}/Data/Features.npy")
+Label = np.load(f"{str(Path(__file__).parent)}/Data/Label.npy")
+print(f"Features : {Features.shape}\nLabels : {Label.shape}")
 
-# prepare data
+# Reshape data to add a channel dimension
+#Features = Features.reshape((Features.shape[0], Features.shape[1], Features.shape[2], Features.shape[3], 1))
+#print(f"Reshaped Features : {Features.shape}")
+
+# Prepare data
 encoder = OneHotEncoder()
 Label = encoder.fit_transform(Label.reshape(-1, 1)).toarray()
-X_train, X_test, y_train, y_test = train_test_split(Data ,Label ,
-                                                    test_size=0.3, random_state = 42)
+X_train, X_test, y_train, y_test = train_test_split(Features, Label, test_size=0.3, random_state=42)
+print(X_train.shape)
 
-# config
-tf.keras.mixed_precision.set_global_policy('float32') # floating type
+# Config
+tf.keras.mixed_precision.set_global_policy('float32')  # Set global policy for mixed precision
 BATCHSIZE = 256
 
-
-
-# model
+# Define the model
 model = Sequential()
-model.add(TimeDistributed(Conv2D(32, (3, 3), activation='relu'), input_shape=(10, 42, 3)))
-model.add(TimeDistributed(MaxPooling2D((2, 2))))
+model.add(Conv2D(4, (3,3), data_format="channels_last", input_shape=(10, 42, 3)))
+model.add(MaxPooling2D((2, 2)))
 model.add(TimeDistributed(Flatten()))
 model.add(LSTM(64, return_sequences=True))
 model.add(LSTM(64))
-model.add(Dense(128, activation='relu'))
+model.add(Dense(256, activation='relu'))
 model.add(Dense(len(Label[0]), activation='softmax'))
 
+# Compile the model
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
+# Callbacks
 checkpoint = ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True, mode='min')
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min')
 
-history = model.fit(tf.convert_to_tensor(X_train), tf.convert_to_tensor(y_train),
-                     epochs=100, batch_size=BATCHSIZE, validation_data=(tf.convert_to_tensor(X_test),
-                                                                         tf.convert_to_tensor(y_test)),
+# Train the model
+history = model.fit(X_train, y_train, epochs=100, batch_size=BATCHSIZE, validation_data=(X_test, y_test),
                     callbacks=[checkpoint, early_stopping])
 
+# Model summary
+model.summary()
+
+# Save the final model
 model.save('final_model.h5')
+
+
 
 '''parentDirectory = Path(__file__).parent
 configFilePath = parentDirectory.joinpath("config.cfg")
