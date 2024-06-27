@@ -15,7 +15,6 @@ if not tempDirectory.exists():
 outputFile = parentDirectory.joinpath("Output.csv")
 
 # Opencv config
-baseSample = 5
 resizeRatio = [5, 9]
 resizeInterpolation = cv2.INTER_AREA
 
@@ -43,13 +42,14 @@ for index, directory in enumerate(inputDirectory.iterdir()):
 totalFile = len(videoPaths)
 tensorMatrix = []
 counter = 0
-Data = tf.constant([],shape=(0, 0, 2, 3), dtype=tf.float16)
+Data = tf.constant([],shape=(0,0), dtype=tf.float16)
 Label = tf.constant([],shape=(0,), dtype=tf.float16)
 for video, index in videoPaths.items():
     cap = cv2.VideoCapture(str(video))
+    counter += 1
+    Frame = 0
     Label = tf.concat([Label, tf.constant([float(index)], dtype=tf.float16)], axis=0)
-    VideoTensor = tf.constant([],shape=(0, 2, 3), dtype=tf.float16)
-    print(Label)
+    videoTensor = tf.constant([],shape=(0,), dtype=tf.float16)
     with mp_hands.Hands(
         model_complexity=0,
         min_detection_confidence=0.5,
@@ -65,15 +65,24 @@ for video, index in videoPaths.items():
         # pass by reference.
         image.flags.writeable = False
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = hands.process(image)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         image = cv2.resize(image, (image.shape[0] // resizeRatio[0], image.shape[1] // resizeRatio[1]), interpolation=resizeInterpolation)
+        results = hands.process(image)
         if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                if len(hand_landmarks.landmarks) == 2:
-                    for corrdinate in hand_landmarks.landmarks[0]: #return x y z
-                       pass
+            for hand_landmarks in results.multi_hand_landmarks
+                for handedness in results.multi_handedness:
+                    for i in range(len(hand_landmarks.landmarks)):
+                        if headedness[i].index == 0 and headedness[i-1] != 0:
+                        		for corrdinate in hand_landmarks.landmarks[i]: #return x y z
+                                tf.concat(videoTensor, tf.constant([corrdinate.x, corrdinate.y, corrdinate.z], dtype=tf.float16)
+                        elif headedness[i].index == 1 and headedness[i-1] != 1:
+                            pass
+                        else:
+                            break
         # Flip the image horizontally for a selfie-view display.
+        if Frame % 10 == 0:
+            Data = tf.stack([Data, videoTensor], axis=0)
+            Label = tf.stack([Label, tf.constant([float(index]), dtype=tf.float16)], axis=0)
+            videoTensor = tf.constant([],shape=(0,), dtype=tf.float16)
         cv2.imshow('MediaPipe Hands', image)
         if cv2.waitKey(5) & 0xFF == 27:
           break
