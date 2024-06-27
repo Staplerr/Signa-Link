@@ -1,33 +1,54 @@
-import tensorflow as tf
-import keras
-from keras import layers
-from tensorflow import nn
-import pandas as pd
-from pathlib import Path
+import json
 import numpy as np
-import time
-import configparser
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+import Video_converter
 
-parentDirectory = Path(__file__).parent
-#labelList = {"นิ่ง": 0,
-#             "กรอบ": 1,
-#             "กิน": 2,
-#             "ข้าว": 3,
-#             "คุณสบายดีไหม": 4,
-#             "ผัด": 5,
-#             "สวัสดี": 6,
-#             "หมู": 7,
-#             "ไหน": 8,
-#             "อยู่": 9}
-labelList = {"นิ่ง": 0,
-             "กรอบ": 1,
-             "กิน": 2,
-             "ข้าว": 3,
-             "คุณสบายดีไหม": 4,
-             "สวัสดี": 5,
-             "หมู": 6,
-             "ไหน": 7,
-             "อยู่": 8}
+# load data
+labelDict = Video_converter.labelList
+Data = np.load("Data.npy")
+Label = np.load("Label.npy")
+print(f"Features : {Data.shape}\nLabels : {Label.shape}")
+
+# prepare data
+encoder = OneHotEncoder()
+Label = encoder.fit_transform(Label.reshape(-1, 1)).toarray()
+X_train, X_test, y_train, y_test = train_test_split(Data ,Label ,
+                                                    test_size=0.3, random_state = 42)
+
+# config
+tf.keras.mixed_precision.set_global_policy('float32') # floating type
+BATCHSIZE = 256
+
+
+
+# model
+model = Sequential()
+model.add(TimeDistributed(Conv2D(32, (3, 3), activation='relu'), input_shape=(10, 42, 3)))
+model.add(TimeDistributed(MaxPooling2D((2, 2))))
+model.add(TimeDistributed(Flatten()))
+model.add(LSTM(64, return_sequences=True))
+model.add(LSTM(64))
+model.add(Dense(128, activation='relu'))
+model.add(Dense(len(Label[0]), activation='softmax'))
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+checkpoint = ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True, mode='min')
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min')
+
+history = model.fit(tf.convert_to_tensor(X_train), tf.convert_to_tensor(y_train),
+                     epochs=100, batch_size=BATCHSIZE, validation_data=(tf.convert_to_tensor(X_test),
+                                                                         tf.convert_to_tensor(y_test)),
+                    callbacks=[checkpoint, early_stopping])
+
+model.save('final_model.h5')
+
+'''parentDirectory = Path(__file__).parent
 configFilePath = parentDirectory.joinpath("config.cfg")
 if not configFilePath.exists():
     raise Exception("No config file found")
@@ -88,4 +109,4 @@ trainEnd = time.perf_counter()
 model.save(modelName)
 #keras.utils.plot_model(model, str(outputFolderName.joinpath("architecture.png")),
 #                       show_shapes=True, dpi=256)
-print(f"Training time: {trainEnd - trainStart}")
+print(f"Training time: {trainEnd - trainStart}")'''
