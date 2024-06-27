@@ -19,24 +19,12 @@ inputDirectory = parentDirectory.joinpath("Videos")
 resizeRatio = [1280, 720]
 resizeInterpolation = cv2.INTER_AREA
 
-# For reading all files in the video folder
-supportsExtension = ["**/*.mp4", "**/*.mov"]
 
 # Dataframe
 f = open(f"{str(Path(__file__).parent)}/Data/label.json",)
 labelList = json.load(f)
-videoPaths = {}
-
-for index, directory in enumerate(inputDirectory.iterdir()):
-    for file in directory.iterdir():
-        videoPaths[file] = index
 
 if __name__ == "__main__":  
-    totalFile = len(videoPaths)
-    counter = 0
-    Data = np.empty((0, 10, 42, 3), dtype=np.float32)
-    Label = np.empty((0,), dtype=np.float32)
-    
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
     mp_hands = mp.solutions.hands
@@ -44,10 +32,8 @@ if __name__ == "__main__":
             model_complexity=0,
             min_detection_confidence=0.4,
             min_tracking_confidence=0.4) as hands:
-        
-        for video, index in videoPaths.items(): # loop video
-            cap = cv2.VideoCapture(str(video))
-            counter += 1
+            cap = cv2.VideoCapture(0)
+            print("starting camera")
             frameArray = np.empty((0,42,3), dtype=np.float32)
             while cap.isOpened():
                 success, image = cap.read()
@@ -68,9 +54,6 @@ if __name__ == "__main__":
                         mp_drawing_styles.get_default_hand_landmarks_style(),
                         mp_drawing_styles.get_default_hand_connections_style())
         # Flip the image horizontally for a selfie-view display.
-                        cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
-                        if cv2.waitKey(5) & 0xFF == 27:
-                            break
                         if len(results.multi_handedness) == 1: # เจอข้างเดียว
                             handedness_dict = MessageToDict(handedness)
                             if handedness_dict["classification"][0]["index"] == 0:
@@ -90,12 +73,15 @@ if __name__ == "__main__":
                             Corrdinates = np.concatenate((Corrdinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
                         for landmark in results.multi_hand_landmarks[1].landmark:
                             Corrdinates = np.concatenate((Corrdinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
-    
+
+                cv2.imshow('Test', image)
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
                 if len(Corrdinates) == 42:
                     frameArray = np.concatenate((frameArray, [Corrdinates]), axis=0)
                 if frameArray.shape == (10,42,3):
                     result = model.predict(frameArray.reshape((1, 10, 42, 3)))
-                    print(f"Model results: {result.tolist()[0].index(max(result.tolist()[0]))}\nReal index: {index}")
+                    print(f"Model results: {labelList[str(result.tolist()[0].index(max(result.tolist()[0])))]}")
                     frameArray = np.empty((0,42,3), dtype=np.float32)
     
             cap.release()
