@@ -81,7 +81,8 @@ if __name__ == "__main__":
                     frameArray = np.concatenate((frameArray, [Corrdinates]), axis=0)
                 if frameArray.shape == (10,42,3):
                     result = model.predict(frameArray.reshape((1, 10, 42, 3)))
-                    print(f"Model results: {labelList[str(result.tolist()[0].index(max(result.tolist()[0])))]}")
+                    #print(f"Model results: {labelList[str(result.tolist()[0].index(max(result.tolist()[0])))]}")
+                    print(f"Model results: {result}")
                     frameArray = np.empty((0,42,3), dtype=np.float32)
     
             cap.release()
