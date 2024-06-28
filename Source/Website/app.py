@@ -1,4 +1,5 @@
 import tensorflow as tf
+import json
 import keras
 from pathlib import Path
 import numpy as np
@@ -37,22 +38,13 @@ frameBuffer = 10 #Number of frame that will be included inside the dataframe
 retryChance = 2
 
 #Matrix model stuff
-matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
-labelList = ["กรอบ",    "กระเพรา",  "ขา",       "ข้าว",
-             "ไข่",      "คะน้า",     "เค็ม",      "โจ๊ก",
-             "แดง",     "ต้ม",       "แตงโม",    "น้ำพริกเผา",
-             "บะหมี่",    "เปรี้ยว",    "ผัด",       "ฝรั่ง",
-             "พริกแกง",  "มะม่วง",    "ม้า",       "มาม่า",
-             "ลูกชิ้นปลา", "เลือด",     "สับ",       "เส้นเล็ก",
-             "เส้นใหญ่",  "หมู",       "หวาน",     "องุ่น",
-             "แอปเปิ้ล"]
-poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
-                      "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
-                      "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
-                      "left wrist", "right wrist", "left pinky", "right pinky", "left index",
-                      "right index","left thumb","right thumb","left hip","right hip"]
-handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
+matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model.h5"))
+f = open(str(parentDirectory.joinpath("static/model/label.json")))
+labels = json.load(f)
+f.close
+handsLandmarkSpot = 21
+"""handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
                       "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
                       "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
                       "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
@@ -84,9 +76,71 @@ def initiateMediapipeModel():
     poseLandmarker = PoseLandmarker.create_from_options(poseOption)
     HandLandmarker = HandLandmarker.create_from_options(handOption)
     return poseLandmarker, HandLandmarker
-poseLandmarker, handLandmarker = initiateMediapipeModel()
-    
+poseLandmarker, handLandmarker = initiateMediapipeModel()"""
 
+mp_hands = mp.solutions.hands
+with mp_hands.Hands(
+        model_complexity=0,
+        min_detection_confidence=0.4,
+        min_tracking_confidence=0.4) as hands:
+    
+    def push(
+            npArray: np.ndarray,
+            value
+        ):
+        """
+            Push new variable into np array and remove the last one
+        """
+        npArray = np.concatenate(([npArray, value]), axis=0)
+        npArray = np.delete(npArray, -1, axis=0)
+        return npArray
+
+    array = np.empty((10,42,3), dtype=np.float32)
+    print(array)
+    print(f"Before shape: {array.shape}")
+    array = push(array, np.ones((1,42, 3)))
+    print(array)
+    print(f"After shape: {array.shape}")
+
+    def preprocessImage():
+        pass
+
+    def landmarker():
+        pass
+
+    @app.route('/predictImage', methods=['POST'])
+    def prediction(image):
+        dataDict = {"label" : None,
+                    "confidence" : None,
+                    "inferenceTime" : {
+                        "neuralNetwork" : None,
+                        "mediaPipe" : None
+                        }
+                    }
+        startTime = time.perf_counter()
+        return jsonify(dataDict)
+
+    @app.route('/')
+    def homePage():
+        session["landmarks"] = np.empty([frameBuffer * (len(handsLandmarkSpot) * 2), 3], dtype=np.float16)
+        session["currentFrame"] = 0
+        return render_template('home.html')
+
+
+    @app.route('/about')
+    def infoPage():
+        return render_template('about.html')
+
+    @app.route('/dataset')
+    def datasetPage():
+        return render_template('dataset.html')
+
+    if __name__ == "__main__":
+        np.set_printoptions(threshold=sys.maxsize)
+        app.run()
+
+
+"""
 def addLandmarks(coordinates, array):
     if type(coordinates[0]) == mpLandmark.Landmark:
         for landmark in coordinates:
@@ -208,3 +262,4 @@ def datasetPage():
 if __name__ == "__main__":
     np.set_printoptions(threshold=sys.maxsize)
     app.run()
+"""
