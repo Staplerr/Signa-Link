@@ -27,7 +27,7 @@ BATCHSIZE = 256
 
 # Define the model
 model = Sequential()
-model.add(Conv2D(4, (3,3), data_format="channels_last", input_shape=(10, 42, 3)))
+model.add(Conv2D(4, (3,3), data_format="channels_last", input_shape=(Features.shape[1], Features.shape[2], Features.shape[3])))
 model.add(MaxPooling2D((2, 2)))
 model.add(TimeDistributed(Flatten()))
 model.add(LSTM(64, return_sequences=True))
