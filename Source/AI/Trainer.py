@@ -6,13 +6,14 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-import Video_converter
 from pathlib import Path
 
 # Load data
-labelDict = Video_converter.labelList
-Features = np.load(f"{str(Path(__file__).parent)}/Data/Features.npy")
-Label = np.load(f"{str(Path(__file__).parent)}/Data/Label.npy")
+parentDirectory = Path(__file__).parent
+f = open(f"{str(parentDirectory)}/Data/label.json",)
+labelDict = json.load(f)
+Features = np.load(f"{str(parentDirectory)}/Data/Features.npy")
+Label = np.load(f"{str(parentDirectory)}/Data/Label.npy")
 print(f"Features : {Features.shape}\nLabels : {Label.shape}")
 
 # Prepare data
@@ -39,7 +40,7 @@ model.add(Dense(len(Label[0]), activation='softmax'))
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Callbacks
-checkpoint = ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint('best_model.keras', monitor='val_loss', save_best_only=True, mode='min')
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min')
 
 # Train the model
@@ -50,4 +51,4 @@ history = model.fit(X_train, y_train, epochs=100, batch_size=BATCHSIZE, validati
 model.summary()
 
 # Save the final model
-model.save('final_model.h5')
+model.save(f'{str(parentDirectory.joinpath("Matrix model"))}/final_model.keras')
