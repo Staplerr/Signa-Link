@@ -24,7 +24,7 @@ print(X_train.shape)
 
 # Config
 tf.keras.mixed_precision.set_global_policy('float32')
-BATCHSIZE = 512
+BATCHSIZE = 64
 
 # Define the model
 model = Sequential()
@@ -57,7 +57,7 @@ model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accur
 # Callbacks
 output_dir = parent_directory / "Matrix model"
 output_dir.mkdir(exist_ok=True)
-checkpoint = ModelCheckpoint(output_dir / 'Complex_best_model.keras', monitor='val_loss', save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint(output_dir / '360p_Complex_best_model.keras', monitor='val_loss', save_best_only=True, mode='min')
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
 
 # Train the model
@@ -68,4 +68,4 @@ history = model.fit(X_train, y_train, epochs=100, batch_size=BATCHSIZE, validati
 model.summary()
 
 # Save the final model
-model.save(output_dir / 'Complex_final_model.keras')
+model.save(output_dir / '360p_Complex_final_model.keras')

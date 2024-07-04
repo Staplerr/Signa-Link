@@ -11,7 +11,8 @@ parent_directory = Path(__file__).parent
 input_directory = parent_directory.parent / "Videos"
 
 # OpenCV config
-resize_ratio = (1280, 720)
+resize_ratio = (1280, 720) # 720p
+#resize_ratio = (640, 360) # 360p
 resize_interpolation = cv2.INTER_AREA
 
 # Supported file extensions
@@ -34,9 +35,8 @@ def process_video(video, label_list, debug=False):
     mp_hands = mp.solutions.hands
     data = np.empty((0, 10, 84, 3), dtype=np.float32)
     labels = np.empty((0,), dtype=np.float32)
-    total_files = len(video_paths)
     
-    with mp_hands.Hands(model_complexity=0, min_detection_confidence=0.4, min_tracking_confidence=0.4) as hands:
+    with mp_hands.Hands(model_complexity=1, min_detection_confidence=0.4, min_tracking_confidence=0.4) as hands:
         cap = cv2.VideoCapture(str(video))
         frame_array = np.empty((0, 84, 3), dtype=np.float32)
         last_coordinates = np.zeros((42, 3), dtype=np.float32)
@@ -87,9 +87,7 @@ def process_video(video, label_list, debug=False):
                 data = np.concatenate((data, [frame_array]), axis=0)
                 labels = np.concatenate((labels, [label_list[str(Path(video).parent.name)]]), axis=0)
                 frame_array = np.empty((0, 84, 3), dtype=np.float32)
-            
-        print(f"Progess : ")
-
+        print(f"Processed: {Path(video).parent.name} with {data.shape[0]} data")
         cap.release()
         if debug:
             cv2.destroyAllWindows()
