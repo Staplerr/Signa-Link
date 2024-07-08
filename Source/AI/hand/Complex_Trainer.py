@@ -3,9 +3,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten, Dropout, Input, Reshape, BatchNormalization
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras.models import Sequential # type: ignore
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten, Dropout, Input, Reshape, BatchNormalization # type: ignore
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping # type: ignore
 from pathlib import Path
 
 # Load data
