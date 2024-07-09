@@ -1,4 +1,3 @@
-import tensorflow as tf
 import json
 import keras
 from pathlib import Path
@@ -9,9 +8,15 @@ from google.protobuf.json_format import MessageToDict
 from flask import Flask, request, jsonify, session, render_template
 from flask_session import Session
 import logging
-from binascii import a2b_base64
-import os
+from PIL import Image
+from base64 import b64decode
+from io import BytesIO
+import cv2
 import sys
+from datetime import datetime
+
+
+# This file is not working due to no model file and conflict paths
 
 app = Flask(__name__)
 #CORS(app)
@@ -34,14 +39,18 @@ logFile = logDirectory.joinpath("log.txt")
 sample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
 retryChance = 2
+resizeRatio = (5,8)
+baseResolution = 32
 
 #Matrix model stuff
-keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('float32'))
+keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
+BATCHSIZE = 512
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model.h5"))
 f = open(str(parentDirectory.joinpath("static/model/label.json")))
 labels = json.load(f)
 f.close
 handsLandmarkSpot = 21
+last_coordinates = np.zeros((42, 3), dtype=np.float32)
 
 mp_hands = mp.solutions.hands
 with mp_hands.Hands(
@@ -60,49 +69,44 @@ with mp_hands.Hands(
         npArray = np.delete(npArray, -1, axis=0)
         return npArray
 
-    array = np.empty((10,42,3), dtype=np.float32)
-    print(array)
-    print(f"Before shape: {array.shape}")
-    array = push(array, np.ones((1,42, 3)))
-    print(array)
-    print(f"After shape: {array.shape}")
-
-    def preprocessImage():
-        pass
+    def preprocessImage(dataURL):
+        binaryImage = b64decode(dataURL[22:])
+        image = Image.open(BytesIO(binaryImage))
+        image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+        #image = cv2.resize(image, (resizeRatio[0] * baseResolution, resizeRatio[1] * baseResolution), interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, (256, 144), interpolation=cv2.INTER_AREA)
+        return image
 
     def landmarker(image):
         results = hands.process(image)
-        Coordinates = np.empty((0,3), dtype=np.float32)
-
+        coordinates = np.zeros((84, 3), dtype=np.float32)
+        print(results.multi_hand_landmarks)
         if not results.multi_hand_landmarks:
             return None
+        if results.multi_hand_landmarks:
+            pass
+        #    handedness = [MessageToDict(hand) for hand in results.multi_handedness]
+        #    for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+        #        start = 0 if handedness[idx]['classification'][0]['index'] == 0 else 21
+        #        for i, landmark in enumerate(hand_landmarks.landmark):    
+        #            coordinates[start + i] = [landmark.x, landmark.y, landmark.z]
+        #            coordinates[start + 42 + i] = [
+        #                coordinates[start + i][0] - last_coordinates[start + i][0],
+        #                coordinates[start + i][1] - last_coordinates[start + i][1],
+        #                coordinates[start + i][2] - last_coordinates[start + i][2]
+        #            ]
+        #    last_coordinates = coordinates[:42]
+        else:
+            last_coordinates = np.zeros((42, 3), dtype=np.float32)
+        return coordinates
 
-        if len(results.multi_handedness) == 1: # เจอข้างเดียว
-            for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
-                handedness_dict = MessageToDict(handedness)
-                if handedness_dict["classification"][0]["index"] == 0:
-                    for landmark in hand_landmarks.landmark:
-                        Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
-                    for i in range(21): # Fill
-                        Coordinates = np.concatenate((Coordinates, [[0 for i in range(3)]]), axis=0)
-                elif handedness_dict["classification"][0]["index"] == 1:
-                    for i in range(21): # Fill
-                        Coordinates = np.concatenate((Coordinates, [[0 for i in range(3)]]), axis=0)
-                    for landmark in hand_landmarks.landmark:
-                        Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
-                else:
-                    continue
-        if len(results.multi_handedness) == 2: # เจอสองข้าง
-            for landmark in results.multi_hand_landmarks[0].landmark:
-                Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
-            for landmark in results.multi_hand_landmarks[1].landmark:
-                Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
-
-
-        return array
+    def modelPrediction(coordinates):
+        last_coordinates = coordinates[:42]
+        result = matrixModel.predict(coordinates, batch_size=BATCHSIZE)
+        return result
 
     @app.route('/predictImage', methods=['POST'])
-    def prediction(image):
+    def prediction():
         dataDict = {"label" : None,
                     "confidence" : None,
                     "inferenceTime" : {
@@ -110,13 +114,25 @@ with mp_hands.Hands(
                         "mediaPipe" : None
                         }
                     }
-        startTime = time.perf_counter()
+        image = preprocessImage(request.get_data())
+        mediapipeResult = landmarker(image)
+        #print(mediapipeResult)
+        landmarks = session["landmarks"]
+        if mediapipeResult != None:
+            landmarks = push(landmarks, mediapipeResult)
+            modelResult = modelPrediction(landmarks)
+            index = np.argmax(modelResult)
+            dataDict["label"] = labels[index]
+            dataDict["confidence"] = modelResult[index]
+        else:
+            log = open(str(logFile), "a")
+            log.write(f"Time: {datetime.now()} Returned: {dataDict} Landmarks: {landmarks}\n\n")
+            log.close()
         return jsonify(dataDict)
 
     @app.route('/')
     def homePage():
-        session["landmarks"] = np.empty([frameBuffer * (len(handsLandmarkSpot) * 2), 3], dtype=np.float16)
-        session["currentFrame"] = 0
+        session["landmarks"] = np.empty([frameBuffer * (handsLandmarkSpot * 2), 3], dtype=np.float16)
         return render_template('home.html')
 
 

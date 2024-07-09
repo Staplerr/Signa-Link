@@ -1,5 +1,6 @@
 Source/AI/Videos
 Source/AI/config.cfg
+Source/AI/holistic/Data/Features.npy
 Source/Website/temp
 Source/Website/logs
 Source/Website/flask_session
