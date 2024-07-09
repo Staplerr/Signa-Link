@@ -14,6 +14,11 @@
             <video autoplay></video>
             <canvas class="d-none"></canvas>
 
+            <div class="decoration-box">
+                <p class="no-camera">
+                    Please select camera input.
+                </p>
+            </div>
             <div class="output">
                 <p class="label-output" id="label-output">
                     Output: -
@@ -63,6 +68,17 @@
                 <button class="btn btn-danger play" title="Play"><i data-feather="play-circle"></i></button>
                 <button class="btn btn-info pause d-none" title="Pause"><i data-feather="pause"></i></button>
                 <button class="btn btn-outline-success screenshot d-none" title="ScreenShot"><i data-feather="image"></i></button>
+            </div>
+
+            <div class="debug">
+                <labe>
+                    Show confidence
+                </p>
+                <input type="checkbox">
+                <p>
+                    Show inference time
+                </p>
+                <input type="checkbox">
             </div>
         </div>
 

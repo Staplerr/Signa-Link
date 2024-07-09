@@ -4,10 +4,8 @@ import keras
 from pathlib import Path
 import numpy as np
 import mediapipe as mp
-from mediapipe.tasks.python import vision
-from mediapipe.tasks.python.components.containers import landmark as mpLandmark
 import time
-from datetime import datetime
+from google.protobuf.json_format import MessageToDict
 from flask import Flask, request, jsonify, session, render_template
 from flask_session import Session
 import logging
@@ -44,39 +42,6 @@ f = open(str(parentDirectory.joinpath("static/model/label.json")))
 labels = json.load(f)
 f.close
 handsLandmarkSpot = 21
-"""handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
-                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
-                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
-                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
-                      "pinky tip"]
-
-
-def initiateMediapipeModel():
-    #Pose/Hand detection model config
-    mediapipeModelDirectory = parentDirectory.joinpath("static/model/mediapipe_model")
-    poseModel = mediapipeModelDirectory.joinpath("pose_landmarker_full.task")
-    handModel = mediapipeModelDirectory.joinpath("hand_landmarker.task")
-
-    minPoseConfidence = 0.5
-    minHandConfidence = 0.5
-    BaseOptions = mp.tasks.BaseOptions
-    PoseLandmarker = vision.PoseLandmarker
-    PoseLandmarkerOptions = vision.PoseLandmarkerOptions
-    HandLandmarker = vision.HandLandmarker
-    HandLandmarkerOptions = vision.HandLandmarkerOptions
-    VisionRunningMode = vision.RunningMode
-    #create the landmarker object
-    poseOption = PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=poseModel),
-                                       running_mode=VisionRunningMode.IMAGE,
-                                       min_pose_detection_confidence=minPoseConfidence)
-    handOption = HandLandmarkerOptions(base_options=BaseOptions(model_asset_path=handModel),
-                                       running_mode=VisionRunningMode.IMAGE,
-                                       min_hand_detection_confidence=minHandConfidence,
-                                       num_hands=2)
-    poseLandmarker = PoseLandmarker.create_from_options(poseOption)
-    HandLandmarker = HandLandmarker.create_from_options(handOption)
-    return poseLandmarker, HandLandmarker
-poseLandmarker, handLandmarker = initiateMediapipeModel()"""
 
 mp_hands = mp.solutions.hands
 with mp_hands.Hands(
@@ -105,8 +70,36 @@ with mp_hands.Hands(
     def preprocessImage():
         pass
 
-    def landmarker():
-        pass
+    def landmarker(image):
+        results = hands.process(image)
+        Coordinates = np.empty((0,3), dtype=np.float32)
+
+        if not results.multi_hand_landmarks:
+            return None
+
+        if len(results.multi_handedness) == 1: # เจอข้างเดียว
+            for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
+                handedness_dict = MessageToDict(handedness)
+                if handedness_dict["classification"][0]["index"] == 0:
+                    for landmark in hand_landmarks.landmark:
+                        Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
+                    for i in range(21): # Fill
+                        Coordinates = np.concatenate((Coordinates, [[0 for i in range(3)]]), axis=0)
+                elif handedness_dict["classification"][0]["index"] == 1:
+                    for i in range(21): # Fill
+                        Coordinates = np.concatenate((Coordinates, [[0 for i in range(3)]]), axis=0)
+                    for landmark in hand_landmarks.landmark:
+                        Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
+                else:
+                    continue
+        if len(results.multi_handedness) == 2: # เจอสองข้าง
+            for landmark in results.multi_hand_landmarks[0].landmark:
+                Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
+            for landmark in results.multi_hand_landmarks[1].landmark:
+                Coordinates = np.concatenate((Coordinates, [[landmark.x, landmark.y, landmark.z]]), axis=0)
+
+
+        return array
 
     @app.route('/predictImage', methods=['POST'])
     def prediction(image):

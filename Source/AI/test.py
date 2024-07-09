@@ -24,6 +24,10 @@ resizeInterpolation = cv2.INTER_AREA
 f = open(f"{str(Path(__file__).parent)}/Data/label.json",)
 labelList = json.load(f)
 
+# Config
+tf.keras.mixed_precision.set_global_policy('mixed_float16')  # Set global policy for mixed precision
+BATCHSIZE = 512
+
 if __name__ == "__main__":  
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
@@ -32,7 +36,7 @@ if __name__ == "__main__":
             model_complexity=0,
             min_detection_confidence=0.4,
             min_tracking_confidence=0.4) as hands:
-            cap = cv2.VideoCapture(0)
+            cap = cv2.VideoCapture(f"{parentDirectory}/2024-05-30 14-30-36.mp4")
             print("starting camera")
             frameArray = np.empty((0,42,3), dtype=np.float32)
             while cap.isOpened():
@@ -80,7 +84,7 @@ if __name__ == "__main__":
                 if len(Corrdinates) == 42:
                     frameArray = np.concatenate((frameArray, [Corrdinates]), axis=0)
                 if frameArray.shape == (10,42,3):
-                    result = model.predict(frameArray.reshape((1, 10, 42, 3)))
+                    result = model.predict(frameArray.reshape((1, 10, 42, 3)), batch_size=BATCHSIZE)
                     print(f"Model results: {labelList[str(result.tolist()[0].index(max(result.tolist()[0])))]}")
                     frameArray = np.empty((0,42,3), dtype=np.float32)
     

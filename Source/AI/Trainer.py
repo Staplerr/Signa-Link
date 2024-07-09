@@ -3,16 +3,17 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-import Video_converter
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, TimeDistributed, LSTM, Dense, Flatten, Dropout
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from pathlib import Path
 
 # Load data
-labelDict = Video_converter.labelList
-Features = np.load(f"{str(Path(__file__).parent)}/Data/Features.npy")
-Label = np.load(f"{str(Path(__file__).parent)}/Data/Label.npy")
+parentDirectory = Path(__file__).parent
+f = open(f"{str(parentDirectory)}/Data/label.json",)
+labelDict = json.load(f)
+Features = np.load(f"{str(parentDirectory)}/Data/Features.npy")
+Label = np.load(f"{str(parentDirectory)}/Data/Label.npy")
 print(f"Features : {Features.shape}\nLabels : {Label.shape}")
 
 # Prepare data
@@ -22,8 +23,8 @@ X_train, X_test, y_train, y_test = train_test_split(Features, Label, test_size=0
 print(X_train.shape)
 
 # Config
-tf.keras.mixed_precision.set_global_policy('float32')  # Set global policy for mixed precision
-BATCHSIZE = 256
+tf.keras.mixed_precision.set_global_policy('mixed_float16')  # Set global policy for mixed precision
+BATCHSIZE = 512
 
 # Define the model
 model = Sequential()
@@ -50,4 +51,4 @@ history = model.fit(X_train, y_train, epochs=100, batch_size=BATCHSIZE, validati
 model.summary()
 
 # Save the final model
-model.save('final_model.h5')
+model.save(f'{str(parentDirectory.joinpath("Matrix model"))}/final_model.h5')

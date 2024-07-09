@@ -27,6 +27,19 @@ video {
     position: absolute;
 }
 
+.decoration-box{
+    left: 50%;
+    bottom: 50%;
+}
+.no-camera {
+    position: relative;
+    text-align: middle;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-shadow: -1px -1px 0 #050018, 1px -1px 0 #050018, -1px 1px 0 #050018, 1px 1px 0 #050018;
+    color: rgb(133, 143, 143);
+    font-size: large;
+    font-weight: bolder;
+}
 
 .output {
     position: absolute;
