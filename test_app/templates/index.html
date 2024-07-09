@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Streaming with Prediction</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  </head>
+  <body>
+    <h1>Video Streaming with Prediction</h1>
+    <video id="video" width="640" height="480" autoplay></video>
+    <img id="predicted_image" width="640" height="480">
+    <h2 id="prediction_text"></h2>
+    <script>
+      const video = document.getElementById('video');
+      const predictedImage = document.getElementById('predicted_image');
+      const predictionText = document.getElementById('prediction_text');
+      const socket = io();
+
+      if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then(function (stream) {
+            video.srcObject = stream;
+          })
+          .catch(function (err0r) {
+            console.log("Something went wrong!");
+          });
+      }
+
+      video.addEventListener('play', function () {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.width;
+        canvas.height = video.height;
+        const context = canvas.getContext('2d');
+
+        setInterval(() => {
+          context.drawImage(video, 0, 0, video.width, video.height);
+          const data = canvas.toDataURL('image/jpeg');
+          socket.emit('image', data.split(',')[1]);
+        }, 100);
+      });
+
+      socket.on('response', function (data) {
+        predictedImage.src = 'data:image/jpeg;base64,' + data.image;
+        predictionText.textContent = data.prediction;
+      });
+    </script>
+  </body>
+</html>

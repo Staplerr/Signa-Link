@@ -14,6 +14,9 @@ from binascii import a2b_base64
 import os
 import sys
 
+
+# This file is not working due to no model file and conflict paths
+
 app = Flask(__name__)
 #CORS(app)
 app.config["SESSION_PERMANENT"] = False
@@ -39,24 +42,6 @@ retryChance = 2
 #Matrix model stuff
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
 keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
-labelList = ["กรอบ",    "กระเพรา",  "ขา",       "ข้าว",
-             "ไข่",      "คะน้า",     "เค็ม",      "โจ๊ก",
-             "แดง",     "ต้ม",       "แตงโม",    "น้ำพริกเผา",
-             "บะหมี่",    "เปรี้ยว",    "ผัด",       "ฝรั่ง",
-             "พริกแกง",  "มะม่วง",    "ม้า",       "มาม่า",
-             "ลูกชิ้นปลา", "เลือด",     "สับ",       "เส้นเล็ก",
-             "เส้นใหญ่",  "หมู",       "หวาน",     "องุ่น",
-             "แอปเปิ้ล"]
-poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
-                      "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
-                      "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
-                      "left wrist", "right wrist", "left pinky", "right pinky", "left index",
-                      "right index","left thumb","right thumb","left hip","right hip"]
-handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
-                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
-                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
-                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
-                      "pinky tip"]
 
 
 def initiateMediapipeModel():
