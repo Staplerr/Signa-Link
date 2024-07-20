@@ -19,7 +19,7 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 
 parent_directory = pathlib.Path(__file__).parent
-model = load_model(parent_directory.joinpath("Complex_best_model.keras"))
+model = load_model(parent_directory.joinpath("5_frames_Complex_best_model.keras"))
 
 resize_ratio = (256, 144)  # 144p
 resize_interpolation = cv2.INTER_AREA
@@ -77,8 +77,8 @@ async def predict(frame, hands, last_coordinates, frame_array):
         frame_array = np.concatenate((frame_array, [coordinates]), axis=0)
         last_coordinates = coordinates[:42]
 
-    if frame_array.shape[0] >= 10:  # Use >= to handle any case where it exceeds 10
-        result = model.predict(frame_array.reshape((1, 10, 84, 3)))
+    if frame_array.shape[0] >= 5:  # Use >= to handle any case where it exceeds 10
+        result = model.predict(frame_array.reshape((1, 5, 84, 3)))
         predicted_label_index = np.argmax(result, axis=1)[0]
         confidence = float(result[0][predicted_label_index]) * 100
         predicted_label = label_list.get(str(predicted_label_index), "Unknown")

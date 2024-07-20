@@ -24,13 +24,11 @@ print(X_train.shape)
 
 # Config
 tf.keras.mixed_precision.set_global_policy('float32')
-BATCHSIZE = 64
+BATCHSIZE = 32
 
 # Define the model
 model = Sequential()
 model.add(Input(shape=(features.shape[1], features.shape[2], features.shape[3])))
-
-# Reshape the input to (batch_size, time_steps, height, width, channels)
 model.add(TimeDistributed(Reshape((21, 4, 3)), input_shape=(10, 84, 3)))
 
 model.add(TimeDistributed(Conv2D(24, (3, 3), activation='relu', padding='same')))
@@ -44,28 +42,28 @@ model.add(TimeDistributed(MaxPooling2D((2, 2))))
 model.add(TimeDistributed(Dropout(0.3)))
 
 model.add(TimeDistributed(Flatten()))
-model.add(LSTM(64, return_sequences=True))
+model.add(LSTM(32, return_sequences=True))
 model.add(Dropout(0.5))
-model.add(LSTM(128))
+model.add(LSTM(64))
 model.add(Dropout(0.5))
-model.add(Dense(256, activation='relu'))
+model.add(Dense(128, activation='relu'))
 model.add(Dense(len(labels[0]), activation='softmax'))
 
-# Compile the model
+# Compile
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# Callbacks
 output_dir = parent_directory / "Matrix model"
 output_dir.mkdir(exist_ok=True)
-checkpoint = ModelCheckpoint(output_dir / '360p_Complex_best_model.keras', monitor='val_loss', save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint(output_dir / 'Complex_best_model.keras', monitor='val_loss', save_best_only=True, mode='min')
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=1)
+
+# Model summary
+model.summary()
 
 # Train the model
 history = model.fit(X_train, y_train, epochs=100, batch_size=BATCHSIZE, validation_data=(X_test, y_test),
                     callbacks=[checkpoint, early_stopping])
 
-# Model summary
-model.summary()
 
 # Save the final model
-model.save(output_dir / '360p_Complex_final_model.keras')
+model.save(output_dir / 'Complex_final_model.keras')
