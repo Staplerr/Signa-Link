@@ -33,22 +33,22 @@ model.add(Input(shape=(features.shape[1], features.shape[2], features.shape[3]))
 # Reshape the input to (batch_size, time_steps, height, width, channels)
 model.add(TimeDistributed(Reshape((21, 4, 3)), input_shape=(10, 84, 3)))
 
+model.add(TimeDistributed(Conv2D(24, (3, 3), activation='relu', padding='same')))
+model.add(TimeDistributed(BatchNormalization()))
+model.add(TimeDistributed(MaxPooling2D((2, 2))))
+model.add(TimeDistributed(Dropout(0.3)))
+
 model.add(TimeDistributed(Conv2D(32, (3, 3), activation='relu', padding='same')))
 model.add(TimeDistributed(BatchNormalization()))
 model.add(TimeDistributed(MaxPooling2D((2, 2))))
 model.add(TimeDistributed(Dropout(0.3)))
 
-model.add(TimeDistributed(Conv2D(64, (3, 3), activation='relu', padding='same')))
-model.add(TimeDistributed(BatchNormalization()))
-model.add(TimeDistributed(MaxPooling2D((2, 2))))
-model.add(TimeDistributed(Dropout(0.3)))
-
 model.add(TimeDistributed(Flatten()))
-model.add(LSTM(128, return_sequences=True))
+model.add(LSTM(64, return_sequences=True))
 model.add(Dropout(0.5))
-model.add(LSTM(256))
+model.add(LSTM(128))
 model.add(Dropout(0.5))
-model.add(Dense(512, activation='relu'))
+model.add(Dense(256, activation='relu'))
 model.add(Dense(len(labels[0]), activation='softmax'))
 
 # Compile the model

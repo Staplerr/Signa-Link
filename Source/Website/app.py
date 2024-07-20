@@ -13,9 +13,10 @@ import logging
 from binascii import a2b_base64
 import os
 import sys
+from keras.models import load_model
+import json
+import cv2
 
-
-# This file is not working due to no model file and conflict paths
 
 app = Flask(__name__)
 #CORS(app)
@@ -25,28 +26,60 @@ Session(app)
 logging.basicConfig(level=logging.DEBUG)
 
 #Directory
-parentDirectory = Path(__file__).parent
-tempDirectory = parentDirectory.joinpath("temp")
-if not tempDirectory.exists():
-    tempDirectory.mkdir(parents=True)
-logDirectory = parentDirectory.joinpath("logs")
-if not logDirectory.exists():
-    logDirectory.mkdir(parents=True)
-logFile = logDirectory.joinpath("log.txt")
+parent_directory = Path(__file__).parent
+model = load_model(f"{parent_directory}/Matrix model/Complex_best_model.keras")
+with open(f"{parent_directory}/Data/labels.json", 'r') as f:
+    label_list = json.load(f)
+
+resize_ratio = (256, 144)  # 144p
+#resize_ratio = (640, 360)  # 360p
+#resize_ratio = (1280, 720) # 720p
+resize_interpolation = cv2.INTER_AREA
+predicted_threshold = 3
 
 #frames config
 sample = 5 #Save frame every n frame
 frameBuffer = 10 #Number of frame that will be included inside the dataframe
 retryChance = 2
 
-#Matrix model stuff
+#Matrix model stuff static/model/matrix_model.keras
 matrixModel = keras.models.load_model(parentDirectory.joinpath("static/model/matrix_model"))
 keras.mixed_precision.set_global_policy(keras.mixed_precision.Policy('mixed_float16'))
+batchSize = 512
+#labelList = ["นิ่ง",
+#             "กรอบ",
+#             "กิน",
+#             "ข้าว",
+#             "คุณสบายดีไหม",
+#             "ผัด",
+#             "สวัสดี",
+#             "หมู",
+#             "ไหน",
+#             "อยู่"]
+labelList = ["นิ่ง",
+             "กรอบ",
+             "กิน",
+             "ข้าว",
+             "คุณสบายดีไหม",
+             "สวัสดี",
+             "หมู",
+             "ไหน",
+             "อยู่"]
+poseColumnNameList = ["nose", "left eye (inner)", "left eye", "left eye (outer)", "right eye (inner)",
+                      "right eye", "right eye (outer)", "left ear", "right ear", "mouth (left)",
+                      "mouth (right)", "left shoulder", "right shoulder", "left elbow", "right elbow",
+                      "left wrist", "right wrist", "left pinky", "right pinky", "left index",
+                      "right index","left thumb","right thumb","left hip","right hip"]
+handColumnNameList = ["wrist", "thumb cmc", "thumb mcp", "thumb ip", "thumb tip",
+                      "index finger mcp", "index finger pip", "index finger dip", "index finger tip", "middle finger mcp",
+                      "middle finger pip", "middle finger dip", "middle finger tip", "ring finger mcp", "ring finger pip",
+                      "ring finger dip", "ring finger tip", "pinky mcp", "pinky pip", "pinky dip",
+                      "pinky tip"]
 
 
 def initiateMediapipeModel():
     #Pose/Hand detection model config
-    mediapipeModelDirectory = parentDirectory.joinpath("static/model/mediapipe_model")
+    mediapipeModelDirectory = parent_directory.joinpath("static/model/mediapipe_model")
     poseModel = mediapipeModelDirectory.joinpath("pose_landmarker_full.task")
     handModel = mediapipeModelDirectory.joinpath("hand_landmarker.task")
 
@@ -88,6 +121,7 @@ def generateFrameLandmarks(frame):
     except: #Occur when saving image gone wrong, don't know how but it did.
         return None
 
+    mpPredictStart = time.perf_counter()
     poseResult = poseLandmarker.detect(image=frame)
     poseCoordinates = poseResult.pose_world_landmarks
     if len(poseCoordinates) == 0:
@@ -95,6 +129,7 @@ def generateFrameLandmarks(frame):
     handResult = handLandmarker.detect(image=frame)
     handedness = handResult.handedness
     handCoordinates = handResult.hand_world_landmarks
+    mpPredictTime = time.perf_counter() - mpPredictStart
 
     coordinatesArray = np.empty((3, ), dtype=np.float16)
     coordinatesArray = addLandmarks(poseCoordinates[0][:25], coordinatesArray)
@@ -118,7 +153,7 @@ def generateFrameLandmarks(frame):
 
     coordinatesArray = np.delete(coordinatesArray, 0, axis=0) #remove the first element that got create when declare the empty array
     coordinatesArray = np.nan_to_num(coordinatesArray) #Replace nan with 0
-    return coordinatesArray #return 2D np array
+    return [coordinatesArray, mpPredictTime] #return 2D np array and float
 
 @app.route('/predictImage', methods=['POST'])
 def predictImage():
@@ -136,31 +171,32 @@ def predictImage():
                 "inferenceTime" : None}
 
     if currentFrame / sample - currentFrame // sample == 0:
-        startTime = time.perf_counter()
         imagePATH = tempDirectory.joinpath(f"frame_{currentFrame}.png")
-        landmarkResult = generateFrameLandmarks(str(imagePATH))
+        mpResult = generateFrameLandmarks(str(imagePATH))
 
-        if type(landmarkResult) != np.ndarray: #Give it another chance when did not detect body
+        if type(mpResult) != list: #Give it another chance when did not detect body
             for i in range(retryChance):
                 imagePATH = tempDirectory.joinpath(f"frame_{currentFrame - i}.png")
                 try:
-                    landmarkResult = generateFrameLandmarks(str(imagePATH))
-                    if type(landmarkResult) == np.ndarray: break
+                    mpResult = generateFrameLandmarks(str(imagePATH))
+                    if type(mpResult) == list: break
                 except: pass
 
-        if type(landmarkResult) == np.ndarray:
-            session["landmarks"] = np.vstack([landmarkResult, session["landmarks"]], dtype=np.float16)
+        if type(mpResult) == list:
+            session["landmarks"] = np.vstack([mpResult[0], session["landmarks"]], dtype=np.float16)
             session["landmarks"] = session["landmarks"][:-(len(poseColumnNameList) + len(handColumnNameList) * 2)]
             landmarks = session["landmarks"]
 
             processedLandmark = landmarks.reshape((-1, 3 * frameBuffer * (len(poseColumnNameList) + len(handColumnNameList) * 2)))
 
-            prediction = matrixModel.predict(processedLandmark, verbose=3)
+            nnPredictStart = time.perf_counter()
+            prediction = matrixModel.predict(processedLandmark, batch_size=batchSize, verbose=3)
 
             #Add data to dictionary
-            dataDict["inferenceTime"] = time.perf_counter() - startTime
+            dataDict["inferenceTime"] = {"Neural network" : time.perf_counter() - nnPredictStart,
+                                         "Mediapipe" : mpResult[1]}
             dataDict["label"] = labelList[np.argmax(prediction)]
-            dataDict["confidence"] = prediction[0][np.argmax(prediction[0])] * 100
+            dataDict["confidence"] = np.round(prediction[0][np.argmax(prediction[0])] * 100, 2)
             
             app.logger.info(f"Returned: {dataDict}")
             log = open(str(logFile), "a")
