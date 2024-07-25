@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -10,9 +11,34 @@ import glob
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-def readDataset(datasetPath: Path,
-                splitRation: float):
-    return
+class handLandmarkData(Dataset):
+    def __init__(self,
+                 data : np.ndarray,
+                 label : np.ndarray):
+        self.data = data
+        self.label = label
+
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, index):
+        return self.data[index], self.label[index]
+
+# Load data from npy file, change to csv please.
+def readDataset(dataPath : Path,
+                labelPath : Path,
+                batchSize : int,
+                splitRatio : float):
+    data, label = np.load(dataPath), np.load(labelPath)
+    trainData, testData = train_test_split(data, test_size=splitRatio, random_state=69, shuffle=False)
+    trainLabel, testLabel = train_test_split(label, test_size=splitRatio, random_state=69, shuffle=False)
+
+    trainDataset = handLandmarkData(trainData, trainLabel)
+    trainDataset = DataLoader(dataset=trainDataset, batch_size=batchSize, shuffle=True)
+
+    testDataset = handLandmarkData(testData, testLabel)
+    testDataset = DataLoader(dataset=testDataset, batch_size=batchSize, shuffle=True)
+    return trainDataset, testDataset
 
 class handLandmarkAnalyzer(nn.Module):
     def __init__(self):
@@ -85,4 +111,14 @@ lossFunction = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 batchSize = 32
 
-model, trainHistory = trainModel(model)
+datasetDir = Path(__file__).parent.joinpath("Data")
+trainDataset, testDataset = readDataset(datasetDir.joinpath("Features.npy"),
+                                        datasetDir.joinpath("Labels.npy"),
+                                        batchSize,
+                                        0.2)
+model, trainHistory = trainModel(model,
+                                 epoch=100,
+                                 lossFunction=lossFunction,
+                                 optimizer=optimizer,
+                                 trainData=trainDataset,
+                                 validationData=testDataset)
